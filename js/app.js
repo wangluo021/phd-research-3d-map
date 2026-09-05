@@ -41,17 +41,17 @@
         line: 0xf4b2cf,
       },
       composites: {
-        surface: 0x171c2f,
-        deep: 0x0f1220,
+        surface: 0x314b67,
+        deep: 0x20354c,
         accent: 0x8fcfff,
         edge: 0xa7ecff,
         line: 0xc2b6ff,
       },
       battery: {
-        surface: 0x182436,
-        deep: 0x0d1726,
+        surface: 0x2f5369,
+        deep: 0x203b50,
         accent: 0xa7ecff,
-        edge: 0xc8f7e5,
+        edge: 0xd0f5ff,
         line: 0x8fcfff,
       },
       molecular: {
@@ -132,7 +132,7 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x05090e, 0.017);
+    scene.fog = new THREE.FogExp2(0x526a82, 0.011);
 
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 420);
     camera.position.set(0, 3.8, cameraDistance);
@@ -286,7 +286,7 @@
     }
 
     function buildLighting() {
-      scene.add(new THREE.HemisphereLight(0xc9dcff, 0x0d1020, 1.5));
+      scene.add(new THREE.HemisphereLight(0xd7e7ff, 0x4a5d72, 1.7));
 
       const key = new THREE.DirectionalLight(0xd7eeff, 3.35);
       key.position.set(-8, 12, 10);
@@ -314,16 +314,16 @@
     function buildAtmosphere() {
       const hazeGeo = new THREE.SphereGeometry(58, 64, 32);
       const hazeMat = new THREE.MeshBasicMaterial({
-        color: 0x24233f,
+        color: 0x8ea6bd,
         transparent: true,
-        opacity: 0.052,
+        opacity: 0.08,
         side: THREE.BackSide,
         depthWrite: false,
       });
       const haze = new THREE.Mesh(hazeGeo, hazeMat);
       scene.add(haze);
 
-      const ringMat = lineMaterial(0xc2b6ff, 0.12);
+      const ringMat = lineMaterial(0xd9e8ff, 0.17);
       [9, 16, 25, 36].forEach((radius, i) => {
         const curve = new THREE.EllipseCurve(0, 0, radius, radius * (0.72 + i * 0.025), 0, Math.PI * 2);
         const points = curve.getPoints(180).map(point => new THREE.Vector3(point.x, -4.8 + i * 0.07, point.y));
@@ -362,7 +362,7 @@
         size: 0.062,
         vertexColors: true,
         transparent: true,
-        opacity: 0.36,
+        opacity: 0.46,
         sizeAttenuation: true,
         depthWrite: false,
       });
@@ -761,7 +761,7 @@
           emissiveIntensity: 0.075,
         })
       );
-      body.scale.set(1.7, 0.72, 1.02);
+      body.scale.set(1.18, 1.04, 1.18);
       body.castShadow = true;
       group.add(body);
       record.materials.push(body.material);
@@ -771,9 +771,9 @@
           new THREE.TorusGeometry(radius * (1.34 + Math.abs(i) * 0.035), radius * 0.006, 8, 150),
           additiveMaterial(i === 0 ? p.edge : p.accent, i === 0 ? 0.55 : 0.28)
         );
-        filament.scale.set(1.36, 0.52, 1);
-        filament.rotation.set(Math.PI / 2 + i * 0.045, 0.08, Math.PI / 12);
-        filament.position.y = i * radius * 0.11;
+        filament.scale.set(1.1, 0.94, 1);
+        filament.rotation.set(Math.PI / 2 + i * 0.05, 0.18, Math.PI / 10);
+        filament.position.y = i * radius * 0.12;
         group.add(filament);
         record.spinObjects.push({ object: filament, speed: 0.00005 + i * 0.000003, axis: "z" });
       }
@@ -782,8 +782,8 @@
       const points = [];
       for (let i = 0; i < 11; i++) {
         const t = (i / 10 - 0.5) * Math.PI;
-        points.push(new THREE.Vector3(Math.cos(t) * radius * 1.8, Math.sin(t) * radius * 0.54, -radius * 0.48));
-        points.push(new THREE.Vector3(Math.cos(t) * radius * 1.8, Math.sin(t) * radius * 0.54, radius * 0.48));
+        points.push(new THREE.Vector3(Math.cos(t) * radius * 1.2, Math.sin(t) * radius * 0.94, -radius * 0.64));
+        points.push(new THREE.Vector3(Math.cos(t) * radius * 1.2, Math.sin(t) * radius * 0.94, radius * 0.64));
       }
       weaveGeo.setFromPoints(points);
       const weave = new THREE.LineSegments(weaveGeo, lineMaterial(p.edge, 0.22));
@@ -804,7 +804,7 @@
           emissiveIntensity: 0.075,
         })
       );
-      shell.scale.set(1.18, 0.92, 1.18);
+      shell.scale.set(1.08, 1.04, 1.08);
       group.add(shell);
       record.materials.push(shell.material);
 
@@ -812,7 +812,7 @@
         const plate = new THREE.Mesh(
           new THREE.CylinderGeometry(radius * (1.02 - Math.abs(i) * 0.04), radius * (1.02 - Math.abs(i) * 0.04), radius * 0.09, 64),
           physicalMaterial(node, {
-            color: i % 2 ? 0x1f2d27 : 0x101a16,
+            color: i % 2 ? 0x365870 : 0x263f56,
             roughness: 0.28,
             metalness: 0.5,
             clearcoat: 0.65,
@@ -841,7 +841,7 @@
           new THREE.SphereGeometry(radius * (0.025 + Math.random() * 0.025), 10, 8),
           additiveMaterial(i % 4 === 0 ? p.edge : p.accent, 0.42)
         );
-        particle.position.set(Math.cos(a) * r, Math.sin(a) * r * 0.45, radius * 0.67 + Math.random() * 0.04);
+        particle.position.set(Math.cos(a) * r, Math.sin(a) * r * 0.78, radius * 0.67 + Math.random() * 0.04);
         group.add(particle);
       }
     }
