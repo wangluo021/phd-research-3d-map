@@ -34,46 +34,46 @@
 
     const PALETTE = {
       core: {
-        surface: 0xeef4ff,
-        deep: 0x7f8da9,
-        accent: 0xa7ecff,
-        edge: 0xf4fbff,
-        line: 0xf4b2cf,
+        surface: 0xfff5cf,
+        deep: 0x9b7816,
+        accent: 0xfdc41f,
+        edge: 0xfff9e6,
+        line: 0x72d6d2,
       },
       composites: {
-        surface: 0x314b67,
-        deep: 0x20354c,
-        accent: 0x8fcfff,
-        edge: 0xa7ecff,
-        line: 0xc2b6ff,
+        surface: 0x0e455c,
+        deep: 0x082e40,
+        accent: 0xfdc41f,
+        edge: 0xffe18b,
+        line: 0x72d6d2,
       },
       battery: {
-        surface: 0x2f5369,
-        deep: 0x203b50,
-        accent: 0xa7ecff,
-        edge: 0xd0f5ff,
-        line: 0x8fcfff,
+        surface: 0xfdc41f,
+        deep: 0x8a6410,
+        accent: 0x0e455c,
+        edge: 0xfff2ba,
+        line: 0xffd95e,
       },
       molecular: {
-        surface: 0x211b32,
-        deep: 0x121021,
-        accent: 0xc2b6ff,
-        edge: 0xf1d8ff,
-        line: 0xf4b2cf,
+        surface: 0x123f54,
+        deep: 0x082b3c,
+        accent: 0xfdc41f,
+        edge: 0xfff0b0,
+        line: 0x72d6d2,
       },
       validation: {
-        surface: 0x2f2030,
-        deep: 0x160f1d,
-        accent: 0xf4b2cf,
-        edge: 0xffd6e7,
-        line: 0xc2b6ff,
+        surface: 0x5a551d,
+        deep: 0x2b3f3f,
+        accent: 0xfdc41f,
+        edge: 0xfff6d4,
+        line: 0x72d6d2,
       },
       outputs: {
-        surface: 0x2f2b3a,
-        deep: 0x151321,
-        accent: 0xe8d9a7,
+        surface: 0x174a5f,
+        deep: 0x082f42,
+        accent: 0xfdc41f,
         edge: 0xfff4cc,
-        line: 0xf4b2cf,
+        line: 0xffd95e,
       },
     };
 
@@ -132,7 +132,7 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x526a82, 0.011);
+    scene.fog = new THREE.FogExp2(0x0e455c, 0.010);
 
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 420);
     camera.position.set(0, 3.8, cameraDistance);
@@ -286,27 +286,27 @@
     }
 
     function buildLighting() {
-      scene.add(new THREE.HemisphereLight(0xd7e7ff, 0x4a5d72, 1.7));
+      scene.add(new THREE.HemisphereLight(0xfff1bd, 0x0e455c, 1.85));
 
-      const key = new THREE.DirectionalLight(0xd7eeff, 3.35);
+      const key = new THREE.DirectionalLight(0xfff6d6, 3.45);
       key.position.set(-8, 12, 10);
       key.castShadow = true;
       key.shadow.mapSize.set(1024, 1024);
       scene.add(key);
 
-      const topFill = new THREE.DirectionalLight(0xc2b6ff, 1.1);
+      const topFill = new THREE.DirectionalLight(0xfdc41f, 1.25);
       topFill.position.set(0, 13, -4);
       scene.add(topFill);
 
-      const warmRim = new THREE.PointLight(0xf4b2cf, 8.2, 58);
+      const warmRim = new THREE.PointLight(0xfdc41f, 9.2, 58);
       warmRim.position.set(12, 4, -12);
       scene.add(warmRim);
 
-      const coolRim = new THREE.PointLight(0xa7ecff, 10.5, 62);
+      const coolRim = new THREE.PointLight(0x72d6d2, 7.2, 62);
       coolRim.position.set(-14, 3, 9);
       scene.add(coolRim);
 
-      const blueFill = new THREE.PointLight(0x8fcfff, 5.2, 46);
+      const blueFill = new THREE.PointLight(0x0e455c, 5.8, 46);
       blueFill.position.set(9, -4, 8);
       scene.add(blueFill);
     }
@@ -314,16 +314,16 @@
     function buildAtmosphere() {
       const hazeGeo = new THREE.SphereGeometry(58, 64, 32);
       const hazeMat = new THREE.MeshBasicMaterial({
-        color: 0x8ea6bd,
+        color: 0x0e455c,
         transparent: true,
-        opacity: 0.08,
+        opacity: 0.075,
         side: THREE.BackSide,
         depthWrite: false,
       });
       const haze = new THREE.Mesh(hazeGeo, hazeMat);
       scene.add(haze);
 
-      const ringMat = lineMaterial(0xd9e8ff, 0.17);
+      const ringMat = lineMaterial(0xfdc41f, 0.18);
       [9, 16, 25, 36].forEach((radius, i) => {
         const curve = new THREE.EllipseCurve(0, 0, radius, radius * (0.72 + i * 0.025), 0, Math.PI * 2);
         const points = curve.getPoints(180).map(point => new THREE.Vector3(point.x, -4.8 + i * 0.07, point.y));
@@ -337,9 +337,9 @@
       const particleCount = isCompactView() ? 520 : 900;
       const positions = new Float32Array(particleCount * 3);
       const colors = new Float32Array(particleCount * 3);
-      const colorA = new THREE.Color(0x8fcfff);
-      const colorB = new THREE.Color(0xf4b2cf);
-      const colorC = new THREE.Color(0xc2b6ff);
+      const colorA = new THREE.Color(0xfdc41f);
+      const colorB = new THREE.Color(0xfff1bd);
+      const colorC = new THREE.Color(0x72d6d2);
 
       for (let i = 0; i < particleCount; i++) {
         const radius = 8 + Math.random() * 48;
@@ -703,7 +703,7 @@
       const inner = new THREE.Mesh(
         new THREE.SphereGeometry(radius * 0.42, 48, 28),
         new THREE.MeshPhysicalMaterial({
-          color: 0xbfe8f8,
+          color: 0xfff2ba,
           metalness: 0.08,
           roughness: 0.18,
           clearcoat: 0.9,
@@ -755,10 +755,11 @@
         new THREE.SphereGeometry(radius, 64, 32),
         physicalMaterial(node, {
           color: p.surface,
-          roughness: 0.21,
-          metalness: 0.64,
-          clearcoat: 0.9,
-          emissiveIntensity: 0.075,
+          roughness: 0.18,
+          metalness: 0.34,
+          clearcoat: 0.95,
+          emissive: p.line,
+          emissiveIntensity: 0.04,
         })
       );
       body.scale.set(1.18, 1.04, 1.18);
