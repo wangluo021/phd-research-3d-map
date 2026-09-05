@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b1118" />
+  <title>PhD Research Constellation</title>
+  <link rel="stylesheet" href="css/styles.css?v=pastel-universe-v5" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>PhD Research Constellation</h1>
+      <p>Composite manufacturing · battery manufacturing · multiscale modeling</p>
+    </div>
+    <div class="toolbar" aria-label="3D map controls">
+      <button id="resetBtn" type="button">Reset View</button>
+      <button id="expandBtn" type="button">Expand All</button>
+      <button id="collapseBtn" type="button">Collapse</button>
+      <button id="rotateBtn" type="button">Pause Rotation</button>
+    </div>
+  </header>
+
+  <main class="app-layout">
+    <section class="map-panel" aria-label="3D research map">
+      <div id="canvasWrap" class="canvas-wrap">
+        <canvas id="mapCanvas" aria-label="Interactive 3D research mind map"></canvas>
+        <div class="scene-note" aria-hidden="true">
+          <strong>Research Constellation</strong>
+          <span>Materials → process → structure → validation → performance</span>
+        </div>
+        <div id="loading" class="loading">Loading 3D map...</div>
+      </div>
+      <div class="legend">
+        <span><i class="dot composites"></i>Theme I — Composite Manufacturing & Multiscale Modeling</span>
+        <span><i class="dot battery"></i>Theme II — Battery Manufacturing & Multiscale Modeling</span>
+      </div>
+    </section>
+
+    <aside class="details-panel" aria-live="polite">
+      <div class="eyebrow">Selected Research Area</div>
+      <h2 id="detailTitle">Research Core</h2>
+      <div id="detailPath" class="breadcrumb">Research Core</div>
+      <p id="detailDescription" class="description"></p>
+
+      <section class="detail-section">
+        <div class="section-heading">
+          <h3>Scientific Visuals</h3>
+          <span id="imageCount" class="muted"></span>
+        </div>
+        <div id="gallery" class="gallery"></div>
+      </section>
+
+      <section class="detail-section">
+        <h3>Models & Methods</h3>
+        <ul id="modelsList" class="plain-list"></ul>
+      </section>
+
+      <section class="detail-section">
+        <h3>Related Publications</h3>
+        <div id="papersList" class="paper-list"></div>
+      </section>
+
+      <section class="detail-section">
+        <h3>Current / Next Work</h3>
+        <ul id="nextList" class="plain-list arrows"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <script src="js/research-data.js"></script>
+  <script src="js/app.js?v=pastel-universe-v5"></script>
+</body>
+</html>
