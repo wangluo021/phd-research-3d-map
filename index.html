@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#f4f1e9" />
   <title>PhD Research Concept Atlas</title>
-  <link rel="stylesheet" href="css/styles.css?v=diagram-atlas-v8" />
+  <link rel="stylesheet" href="css/styles.css?v=2d-atlas-v9" />
 </head>
 <body>
   <header class="topbar">
@@ -13,23 +13,23 @@
       <h1>PhD Research Concept Atlas</h1>
       <p>Composite manufacturing · battery manufacturing · multiscale modeling</p>
     </div>
-    <div class="toolbar" aria-label="3D map controls">
+    <div class="toolbar" aria-label="2D map controls">
       <button id="resetBtn" type="button">Reset View</button>
       <button id="expandBtn" type="button">Expand All</button>
       <button id="collapseBtn" type="button">Collapse</button>
-      <button id="rotateBtn" type="button">Pause Rotation</button>
+      <button id="rotateBtn" type="button">Pause Drift</button>
     </div>
   </header>
 
   <main class="app-layout">
-    <section class="map-panel" aria-label="3D research map">
+    <section class="map-panel" aria-label="2D research map">
       <div id="canvasWrap" class="canvas-wrap">
-        <canvas id="mapCanvas" aria-label="Interactive 3D research mind map"></canvas>
+        <svg id="mapCanvas" role="img" aria-label="Interactive 2D research mind map"></svg>
         <div class="scene-note" aria-hidden="true">
           <strong>Research Concept Atlas</strong>
           <span>Materials → process → structure → validation → performance</span>
         </div>
-        <div id="loading" class="loading">Loading 3D map...</div>
+        <div id="loading" class="loading">Loading 2D map...</div>
       </div>
       <div class="legend">
         <span><i class="dot composites"></i>Theme I — Composite Manufacturing & Multiscale Modeling</span>
@@ -69,6 +69,6 @@
   </main>
 
   <script src="js/research-data.js"></script>
-  <script src="js/app.js?v=diagram-atlas-v8"></script>
+  <script src="js/app.js?v=2d-atlas-v9"></script>
 </body>
 </html>

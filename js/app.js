@@ -1,14 +1,15 @@
-(async function () {
+(function () {
   const loading = document.getElementById("loading");
 
   try {
     if (!window.researchTree) throw new Error("Research data did not load. Check js/research-data.js.");
-    if (loading) loading.textContent = "Initializing research constellation...";
+    if (loading) loading.textContent = "Initializing 2D research atlas...";
 
-    const THREE = await import("https://cdn.jsdelivr.net/npm/three@0.180.0/+esm");
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const XLINK_NS = "http://www.w3.org/1999/xlink";
     const researchTree = window.researchTree;
 
-    const canvas = document.getElementById("mapCanvas");
+    const svg = document.getElementById("mapCanvas");
     const canvasWrap = document.getElementById("canvasWrap");
     const resetBtn = document.getElementById("resetBtn");
     const expandBtn = document.getElementById("expandBtn");
@@ -24,60 +25,32 @@
     const papersList = document.getElementById("papersList");
     const nextList = document.getElementById("nextList");
 
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const tmpScale = new THREE.Vector3(1, 1, 1);
-    const yAxis = new THREE.Vector3(0, 1, 0);
-    const billboardQuaternion = new THREE.Quaternion();
-    const inverseResearchQuaternion = new THREE.Quaternion();
-    const projectedPosition = new THREE.Vector3();
-    const worldPosition = new THREE.Vector3();
+    if (!(svg instanceof SVGSVGElement)) throw new Error("The 2D map requires an SVG element with id=\"mapCanvas\".");
 
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const PALETTE = {
       core: {
-        surface: 0xd7c777,
-        deep: 0x756b38,
-        accent: 0x1c1d1b,
-        edge: 0x1c1d1b,
-        line: 0xa6a7a2,
+        surface: "#d7c777",
+        deep: "#756b38",
+        accent: "#1c1d1b",
+        line: "#a6a7a2",
+        wash: "rgba(217,217,213,.50)",
       },
       composites: {
-        surface: 0x72b9bd,
-        deep: 0x0e455c,
-        accent: 0x0e455c,
-        edge: 0x1c1d1b,
-        line: 0xb7bebd,
+        surface: "#72b9bd",
+        deep: "#0e455c",
+        accent: "#0e455c",
+        line: "#aab9b7",
+        wash: "rgba(217,217,213,.54)",
       },
       battery: {
-        surface: 0xd98282,
-        deep: 0x8e4c4c,
-        accent: 0x8e4c4c,
-        edge: 0x1c1d1b,
-        line: 0xb7bebd,
-      },
-      molecular: {
-        surface: 0xd7c777,
-        deep: 0x766b34,
-        accent: 0x766b34,
-        edge: 0x1c1d1b,
-        line: 0xb7bebd,
-      },
-      validation: {
-        surface: 0xd98282,
-        deep: 0x8e4c4c,
-        accent: 0x8e4c4c,
-        edge: 0x1c1d1b,
-        line: 0xb7bebd,
-      },
-      outputs: {
-        surface: 0xd7c777,
-        deep: 0x756b38,
-        accent: 0x756b38,
-        edge: 0x1c1d1b,
-        line: 0xb7bebd,
+        surface: "#d98282",
+        deep: "#8e4c4c",
+        accent: "#8e4c4c",
+        line: "#b9aaaa",
+        wash: "rgba(217,217,213,.46)",
       },
     };
-
-    const CATEGORY_COLORS = Object.fromEntries(Object.entries(PALETTE).map(([key, value]) => [key, value.accent]));
 
     const nodesById = new Map();
     const parentById = new Map();
@@ -95,83 +68,61 @@
     let selectedId = "core";
     let expanded = new Set(["core"]);
     let selectedPath = getPathIds(selectedId);
-    let autoRotate = true;
+    let autoDrift = true;
     let hoveredId = null;
     let isDragging = false;
     let dragMoved = 0;
     let lastX = 0;
     let lastY = 0;
-    let sceneRotationX = 0;
-    let sceneRotationY = 0;
-    let targetRotationX = sceneRotationX;
-    let targetRotationY = sceneRotationY;
-    let cameraDistance = defaultCameraDistance();
-    let targetCameraDistance = cameraDistance;
-    let lastCompact = isCompactView();
+    let pointerDownNodeId = null;
+    let ignoreNextClick = false;
+    let lastSize = { width: 0, height: 0 };
 
-    const focusOffset = new THREE.Vector3();
-    const targetFocusOffset = new THREE.Vector3();
+    const view = {
+      width: 1,
+      height: 1,
+      scale: 1,
+      tx: 0,
+      ty: 0,
+      targetScale: 1,
+      targetTx: 0,
+      targetTy: 0,
+      baseScale: 1,
+      baseTx: 0,
+      baseTy: 0,
+      userMoved: false,
+    };
+
     const itemById = new Map();
-    const nodeRecords = new Map();
-    const labelRecords = [];
-    const previewRecords = [];
-    const connectorRecords = [];
-    const orbitalRecords = [];
+    const connectionRecords = [];
+    let worldGroup = null;
 
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance",
-    });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.75));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0xf7f5ef, 0.006);
-
-    const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 420);
-    camera.position.set(0, 0.2, cameraDistance);
-    camera.lookAt(0, 0, 0);
-
-    buildLighting();
-    buildAtmosphere();
-
-    const researchGroup = new THREE.Group();
-    scene.add(researchGroup);
-
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    const interactiveMeshes = [];
-
-    function isCompactView() {
-      const width = canvasWrap?.clientWidth || window.innerWidth || 1024;
-      return width < 560;
+    function setAttrs(element, attrs) {
+      Object.entries(attrs).forEach(([key, value]) => {
+        if (value == null) return;
+        if (key === "href") {
+          element.setAttributeNS(XLINK_NS, "href", value);
+          element.setAttribute("href", value);
+        } else {
+          element.setAttribute(key, value);
+        }
+      });
+      return element;
     }
 
-    function isTabletView() {
-      const width = canvasWrap?.clientWidth || window.innerWidth || 1024;
-      return width < 900;
+    function svgEl(name, attrs = {}, text = "") {
+      const element = document.createElementNS(SVG_NS, name);
+      setAttrs(element, attrs);
+      if (text) element.textContent = text;
+      return element;
     }
 
-    function defaultCameraDistance() {
-      if (isCompactView()) return 34.5;
-      if (isTabletView()) return 36.5;
-      return 31.5;
-    }
-
-    function maxCameraDistance() {
-      if (isCompactView()) return 52;
-      if (isTabletView()) return 56;
-      return 54;
+    function clear(element) {
+      while (element.firstChild) element.removeChild(element.firstChild);
     }
 
     function escapeHtml(value) {
-      return String(value).replace(/[&<>\"]/g, char => ({
+      return String(value).replace(/[&<>"]/g, char => ({
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
@@ -179,8 +130,8 @@
       }[char]));
     }
 
-    function hexToCss(hex) {
-      return `#${hex.toString(16).padStart(6, "0")}`;
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
     }
 
     function paletteFor(node) {
@@ -223,362 +174,18 @@
       return false;
     }
 
-    function classifyNode(node, depth) {
-      const text = `${node.id} ${node.name}`.toLowerCase();
-      if (depth === 0) return "core";
-      if (depth === 1 && node.category === "composites") return "theme-composite";
-      if (depth === 1 && node.category === "battery") return "theme-battery";
-      if (/publication|output|future|translation|paper/.test(text)) return "output";
-      if (/molecular|interface|electrolyte|lpscl|md|atom|pu|carbon|cellulose/.test(text)) return "molecular";
-      if (/validation|experimental|experiment|dsc|sem|eis|testing|load-cell|lab/.test(text)) return "experimental";
-      if (/manufacturing|process|pultrusion|calender|spray|mixing|binder|electrode|dry|hot/.test(text)) return "process";
-      if (/model|simulation|rve|abaqus|fidelity|force|optimization|transport|mechanics|field/.test(text)) return "simulation";
-      return "simulation";
-    }
-
     function nodeProminence(id) {
       if (selectedId === "core") return 0.94;
       if (id === selectedId) return 1;
       if (selectedPath.has(id)) return 0.9;
-      if (isAdjacentToSelection(id)) return 0.78;
+      if (isAdjacentToSelection(id)) return 0.76;
       return 0.48;
-    }
-
-    function physicalMaterial(node, options = {}) {
-      const p = paletteFor(node);
-      const opacity = options.opacity ?? 1;
-      return new THREE.MeshPhysicalMaterial({
-        color: options.color ?? p.surface,
-        roughness: options.roughness ?? 0.25,
-        metalness: options.metalness ?? 0.34,
-        clearcoat: options.clearcoat ?? 0.78,
-        clearcoatRoughness: options.clearcoatRoughness ?? 0.16,
-        transmission: options.transmission ?? 0,
-        thickness: options.thickness ?? 0.25,
-        ior: options.ior ?? 1.45,
-        emissive: options.emissive ?? p.accent,
-        emissiveIntensity: options.emissiveIntensity ?? 0.035,
-        transparent: opacity < 1 || (options.transmission ?? 0) > 0,
-        opacity,
-        depthWrite: opacity > 0.42,
-      });
-    }
-
-    function lineMaterial(color, opacity, linewidth = 1) {
-      return new THREE.LineBasicMaterial({
-        color,
-        transparent: true,
-        opacity,
-        linewidth,
-        depthWrite: false,
-      });
-    }
-
-    function additiveMaterial(color, opacity) {
-      return new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        toneMapped: false,
-      });
-    }
-
-    function buildLighting() {
-      scene.add(new THREE.HemisphereLight(0xffffff, 0xd9d8d2, 1.55));
-
-      const key = new THREE.DirectionalLight(0xffffff, 2.15);
-      key.position.set(-8, 12, 10);
-      key.castShadow = true;
-      key.shadow.mapSize.set(1024, 1024);
-      scene.add(key);
-
-      const topFill = new THREE.DirectionalLight(0xf7f5ef, 0.75);
-      topFill.position.set(0, 13, -4);
-      scene.add(topFill);
-
-      const warmRim = new THREE.PointLight(0xd7c777, 2.8, 58);
-      warmRim.position.set(12, 4, -12);
-      scene.add(warmRim);
-
-      const coolRim = new THREE.PointLight(0x72b9bd, 2.6, 62);
-      coolRim.position.set(-14, 3, 9);
-      scene.add(coolRim);
-
-      const blueFill = new THREE.PointLight(0xffffff, 1.4, 46);
-      blueFill.position.set(9, -4, 8);
-      scene.add(blueFill);
-    }
-
-    function buildAtmosphere() {
-      const hazeGeo = new THREE.SphereGeometry(58, 64, 32);
-      const hazeMat = new THREE.MeshBasicMaterial({
-        color: 0xf7f5ef,
-        transparent: true,
-        opacity: 0.18,
-        side: THREE.BackSide,
-        depthWrite: false,
-      });
-      const haze = new THREE.Mesh(hazeGeo, hazeMat);
-      scene.add(haze);
-
-      const ringMat = lineMaterial(0x1c1d1b, 0.08);
-      [9, 16, 25, 36].forEach((radius, i) => {
-        const curve = new THREE.EllipseCurve(0, 0, radius, radius * (0.72 + i * 0.025), 0, Math.PI * 2);
-        const points = curve.getPoints(180).map(point => new THREE.Vector3(point.x, -4.8 + i * 0.07, point.y));
-        const geo = new THREE.BufferGeometry().setFromPoints(points);
-        const ring = new THREE.LineLoop(geo, ringMat.clone());
-        ring.rotation.x = -0.08;
-        scene.add(ring);
-        orbitalRecords.push({ object: ring, speed: 0.000018 * (i + 1), axis: "y" });
-      });
-
-      const particleCount = isCompactView() ? 520 : 900;
-      const positions = new Float32Array(particleCount * 3);
-      const colors = new Float32Array(particleCount * 3);
-      const colorA = new THREE.Color(0xa8aaa5);
-      const colorB = new THREE.Color(0xd7c777);
-      const colorC = new THREE.Color(0x72b9bd);
-
-      for (let i = 0; i < particleCount; i++) {
-        const radius = 8 + Math.random() * 48;
-        const angle = Math.random() * Math.PI * 2;
-        const height = -9 + Math.random() * 22;
-        positions[i * 3] = Math.cos(angle) * radius;
-        positions[i * 3 + 1] = height;
-        positions[i * 3 + 2] = Math.sin(angle) * radius * 0.7;
-
-        const color = i % 9 === 0 ? colorC : i % 3 === 0 ? colorB : colorA;
-        colors[i * 3] = color.r;
-        colors[i * 3 + 1] = color.g;
-        colors[i * 3 + 2] = color.b;
-      }
-
-      const particleGeo = new THREE.BufferGeometry();
-      particleGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      particleGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-      const particleMat = new THREE.PointsMaterial({
-        size: 0.062,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.22,
-        sizeAttenuation: true,
-        depthWrite: false,
-      });
-      const dataField = new THREE.Points(particleGeo, particleMat);
-      scene.add(dataField);
-      orbitalRecords.push({ object: dataField, speed: -0.000032, axis: "y" });
-    }
-
-    function drawRoundRect(ctx, x, y, width, height, radius) {
-      const r = Math.min(radius, width / 2, height / 2);
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + width - r, y);
-      ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-      ctx.lineTo(x + width, y + height - r);
-      ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-      ctx.lineTo(x + r, y + height);
-      ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
-    }
-
-    function labelLines(text, depth) {
-      const normalized = text
-        .replace("Theme I — ", "Theme I|")
-        .replace("Theme II — ", "Theme II|");
-      if (normalized.includes("|")) return normalized.split("|").filter(Boolean);
-
-      const limit = depth <= 1 ? 34 : 30;
-      if (normalized.length <= limit) return [normalized];
-
-      const words = normalized.split(/\s+/);
-      const lines = [];
-      let line = "";
-      words.forEach(word => {
-        const next = line ? `${line} ${word}` : word;
-        if (next.length > limit && line) {
-          lines.push(line);
-          line = word;
-        } else {
-          line = next;
-        }
-      });
-      if (line) lines.push(line);
-      return lines.slice(0, 2).map(line => line.length > limit + 5 ? `${line.slice(0, limit + 2)}...` : line);
-    }
-
-    function makeLabelTexture(text, colorHex, depth) {
-      const width = 3072;
-      const height = 720;
-      const c = document.createElement("canvas");
-      c.width = width;
-      c.height = height;
-      const ctx = c.getContext("2d");
-      ctx.clearRect(0, 0, width, height);
-
-      const lines = labelLines(text, depth);
-      const boxW = depth <= 1 ? 2450 : 2100;
-      const boxH = lines.length > 1 ? 430 : 310;
-      const x = (width - boxW) / 2;
-      const y = (height - boxH) / 2;
-      const accent = hexToCss(colorHex);
-      const grad = ctx.createLinearGradient(x, y, x + boxW, y + boxH);
-      grad.addColorStop(0, "rgba(255,255,255,0.86)");
-      grad.addColorStop(1, "rgba(246,244,238,0.50)");
-      drawRoundRect(ctx, x, y, boxW, boxH, 58);
-      ctx.fillStyle = grad;
-      ctx.fill();
-      ctx.strokeStyle = depth <= 1 ? `${accent}70` : "rgba(28,29,27,0.18)";
-      ctx.lineWidth = 4;
-      ctx.stroke();
-
-      ctx.fillStyle = `${accent}9a`;
-      drawRoundRect(ctx, x + 70, y + boxH * 0.5 - 44, 16, 88, 8);
-      ctx.fill();
-
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.shadowColor = "rgba(255,255,255,0.72)";
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = "#1c1d1b";
-      ctx.font = `${depth <= 1 ? 620 : 560} ${depth <= 1 ? 112 : 92}px Inter, Arial, sans-serif`;
-      const lineHeight = depth <= 1 ? 132 : 112;
-      const startY = height / 2 - ((lines.length - 1) * lineHeight) / 2;
-      lines.forEach((line, index) => ctx.fillText(line, width / 2, startY + index * lineHeight));
-
-      const texture = new THREE.CanvasTexture(c);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      texture.generateMipmaps = true;
-      texture.needsUpdate = true;
-      return texture;
-    }
-
-    function makeCaptionTexture(text, colorHex) {
-      const c = document.createElement("canvas");
-      c.width = 1800;
-      c.height = 260;
-      const ctx = c.getContext("2d");
-      const label = text.length > 58 ? `${text.slice(0, 55)}...` : text;
-      const accent = hexToCss(colorHex);
-      const grad = ctx.createLinearGradient(0, 0, c.width, c.height);
-      grad.addColorStop(0, "rgba(255,255,255,0.90)");
-      grad.addColorStop(1, "rgba(246,244,238,0.56)");
-      drawRoundRect(ctx, 24, 34, c.width - 48, c.height - 68, 34);
-      ctx.fillStyle = grad;
-      ctx.fill();
-      ctx.strokeStyle = `${accent}55`;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.fillStyle = "#1c1d1b";
-      ctx.font = "500 58px Inter, Arial, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.shadowColor = "rgba(255,255,255,0.72)";
-      ctx.shadowBlur = 8;
-      ctx.fillText(label, c.width / 2, c.height / 2);
-
-      const texture = new THREE.CanvasTexture(c);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      texture.generateMipmaps = true;
-      return texture;
-    }
-
-    function makeFallbackPreviewTexture(node) {
-      const c = document.createElement("canvas");
-      c.width = 1400;
-      c.height = 900;
-      const ctx = c.getContext("2d");
-      const p = paletteFor(node);
-      const accent = hexToCss(p.accent);
-      const edge = hexToCss(p.edge);
-      const bg = ctx.createLinearGradient(0, 0, c.width, c.height);
-      bg.addColorStop(0, "#ffffff");
-      bg.addColorStop(0.55, "#f7f5ef");
-      bg.addColorStop(1, "#ece9df");
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, c.width, c.height);
-
-      ctx.globalAlpha = 0.28;
-      ctx.strokeStyle = "rgba(28,29,27,0.18)";
-      ctx.lineWidth = 1.5;
-      for (let x = 0; x < c.width; x += 92) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, c.height);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-
-      ctx.fillStyle = "rgba(217,217,213,0.62)";
-      ctx.beginPath();
-      ctx.ellipse(700, 390, 360, 220, -0.2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = `${edge}70`;
-      ctx.lineWidth = 8;
-      ctx.beginPath();
-      ctx.ellipse(700, 390, 220, 145, -0.2, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.strokeStyle = `${accent}aa`;
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.ellipse(700, 390, 340, 50, 0.24, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = accent;
-      ctx.beginPath();
-      ctx.arc(700, 390, 52, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = "#1c1d1b";
-      ctx.font = "500 66px Inter, Arial, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(node.name.slice(0, 36), 700, 730);
-
-      const texture = new THREE.CanvasTexture(c);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      texture.generateMipmaps = true;
-      return texture;
-    }
-
-    function loadTextureSafe(src, node, onReady) {
-      const fallback = makeFallbackPreviewTexture(node);
-      if (!src) {
-        onReady(fallback, { width: 1400, height: 900 });
-        return;
-      }
-
-      const loader = new THREE.TextureLoader();
-      loader.load(
-        src,
-        texture => {
-          texture.colorSpace = THREE.SRGBColorSpace;
-          texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-          texture.minFilter = THREE.LinearMipmapLinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-          texture.generateMipmaps = true;
-          texture.needsUpdate = true;
-          const image = texture.image || {};
-          onReady(texture, {
-            width: image.naturalWidth || image.width || 1400,
-            height: image.naturalHeight || image.height || 900,
-          });
-          fallback.dispose();
-        },
-        undefined,
-        () => onReady(fallback, { width: 1400, height: 900 })
-      );
     }
 
     function visibleItems() {
       const out = [];
       function walk(node, depth, parentObj) {
-        const obj = { node, depth, parentObj, pos: new THREE.Vector3() };
+        const obj = { node, depth, parentObj, pos: { x: 0, y: 0 }, prominence: nodeProminence(node.id) };
         out.push(obj);
         if (expanded.has(node.id)) (node.children || []).forEach(child => walk(child, depth + 1, obj));
       }
@@ -594,25 +201,21 @@
 
     function layoutItems(items) {
       itemById.clear();
-      const compact = isCompactView();
-      const tablet = isTabletView();
       const themes = researchTree.children || [];
       const themeSide = new Map(themes.map((theme, index) => [theme.id, index === 0 ? -1 : 1]));
-
       items.forEach(item => itemById.set(item.node.id, item));
 
       items.forEach(item => {
         if (item.depth === 0) {
-          item.pos.set(0, 0.2, 0);
+          item.pos.x = 0;
+          item.pos.y = 0;
           return;
         }
 
         if (item.depth === 1) {
           const side = themeSide.get(item.node.id) || 1;
-          const x = side * (compact ? 4.35 : tablet ? 5.75 : 6.95);
-          const y = side < 0 ? (compact ? 1.36 : 1.62) : (compact ? -0.52 : -0.78);
-          const z = side * (compact ? -0.08 : -0.18);
-          item.pos.set(x, y, z);
+          item.pos.x = side * 300;
+          item.pos.y = side < 0 ? -68 : 58;
           return;
         }
 
@@ -620,728 +223,363 @@
         const side = themeSide.get(theme.node.id) || 1;
         const parent = item.parentObj;
         const siblings = parent.node.children || [];
-        const idx = Math.max(0, siblings.findIndex(node => node.id === item.node.id));
+        const index = Math.max(0, siblings.findIndex(node => node.id === item.node.id));
         const center = (siblings.length - 1) / 2;
-        const normalized = siblings.length > 1 ? (idx - center) / Math.max(center, 1) : 0;
-        const angle = normalized * (compact ? 1.02 : 1.28);
+        const localIndex = index - center;
 
         if (item.depth === 2) {
-          const outward = compact ? 2.55 : tablet ? 3.55 : 4.45;
-          const vertical = compact ? 2.48 : 3.18;
-          const depth = compact ? 0.58 : 0.82;
-          item.pos.set(
-            parent.pos.x + side * outward,
-            parent.pos.y - Math.sin(angle) * vertical,
-            parent.pos.z + Math.cos(angle) * depth + (idx % 2 ? 0.16 : -0.16)
-          );
+          const spread = siblings.length > 5 ? 600 : 500;
+          item.pos.x = parent.pos.x + side * 270;
+          item.pos.y = (siblings.length > 1 ? localIndex / Math.max(center, 1) : 0) * (spread / 2) + (side < 0 ? -34 : 28);
           return;
         }
 
-        const localIndex = idx - center;
-        const outward = compact ? 1.72 + (item.depth - 3) * 0.94 : 2.44 + (item.depth - 3) * 1.26;
-        item.pos.set(
-          parent.pos.x + side * outward,
-          parent.pos.y - localIndex * (compact ? 1.22 : 1.62),
-          parent.pos.z + localIndex * (compact ? 0.22 : 0.34) - side * 0.14
-        );
+        const parentIndex = Math.max(0, (parent.parentObj?.node.children || []).findIndex(node => node.id === parent.node.id));
+        const stagger = parentIndex % 2 ? 26 : -10;
+        item.pos.x = parent.pos.x + side * (190 + Math.abs(localIndex) * 22);
+        item.pos.y = parent.pos.y + localIndex * 76 + stagger;
       });
-    }
-
-    function disposeMaterial(material) {
-      if (!material) return;
-      const materials = Array.isArray(material) ? material : [material];
-      materials.forEach(item => {
-        if (item.map) item.map.dispose();
-        if (item.emissiveMap) item.emissiveMap.dispose();
-        item.dispose();
-      });
-    }
-
-    function disposeTree(root) {
-      root.traverse(child => {
-        if (child.geometry) child.geometry.dispose();
-        disposeMaterial(child.material);
-      });
-    }
-
-    function clearResearchGroup() {
-      while (researchGroup.children.length) {
-        const child = researchGroup.children.pop();
-        disposeTree(child);
-      }
-      interactiveMeshes.length = 0;
-      nodeRecords.clear();
-      labelRecords.length = 0;
-      previewRecords.length = 0;
-      connectorRecords.length = 0;
-    }
-
-    function makeCylinderBetween(from, to, radius, material, radialSegments = 10) {
-      const direction = new THREE.Vector3().subVectors(to, from);
-      const length = direction.length();
-      const geometry = new THREE.CylinderGeometry(radius, radius, length, radialSegments, 1, true);
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.copy(from).add(to).multiplyScalar(0.5);
-      mesh.quaternion.setFromUnitVectors(yAxis, direction.normalize());
-      return mesh;
-    }
-
-    function flatMaterial(color, opacity = 1) {
-      return new THREE.MeshBasicMaterial({
-        color,
-        transparent: opacity < 1,
-        opacity,
-        side: THREE.DoubleSide,
-        depthWrite: opacity > 0.48,
-        toneMapped: false,
-      });
-    }
-
-    function addFlatCircle(group, radius, color, opacity, z = 0) {
-      const mesh = new THREE.Mesh(
-        new THREE.CircleGeometry(radius, 96),
-        flatMaterial(color, opacity)
-      );
-      mesh.position.z = z;
-      group.add(mesh);
-      return mesh;
-    }
-
-    function addEllipseLine(group, radiusX, radiusY, color, opacity, z = 0.03, start = 0, end = Math.PI * 2) {
-      const curve = new THREE.EllipseCurve(0, 0, radiusX, radiusY, start, end);
-      const points = curve.getPoints(160).map(point => new THREE.Vector3(point.x, point.y, z));
-      const geo = new THREE.BufferGeometry().setFromPoints(points);
-      const line = Math.abs(end - start) >= Math.PI * 2
-        ? new THREE.LineLoop(geo, lineMaterial(color, opacity))
-        : new THREE.Line(geo, lineMaterial(color, opacity));
-      group.add(line);
-      return line;
-    }
-
-    function addDiagramNodeVisual(record) {
-      const { group, node, depth, radius } = record;
-      const p = paletteFor(node);
-      const domainRadius = radius * (depth === 0 ? 3.35 : depth === 1 ? 3.0 : depth === 2 ? 2.1 : 1.7);
-      const domainOpacity = depth === 0 ? 0.18 : depth === 1 ? 0.28 : depth === 2 ? 0.14 : 0.1;
-      const bodyRadius = radius * (depth === 0 ? 0.92 : depth === 1 ? 1.02 : depth === 2 ? 0.9 : 0.82);
-      const bodyOpacity = depth <= 1 ? 0.92 : 0.86;
-      const ringOpacity = depth <= 1 ? 0.44 : 0.28;
-
-      const domain = addFlatCircle(group, domainRadius, 0xd9d9d5, domainOpacity, -0.08);
-      domain.scale.set(1.18, depth === 0 ? 1.02 : 0.88, 1);
-
-      const castShadow = addFlatCircle(group, bodyRadius * 1.06, 0x1c1d1b, depth <= 1 ? 0.09 : 0.055, -0.02);
-      castShadow.position.x = radius * 0.08;
-      castShadow.position.y = -radius * 0.08;
-
-      addFlatCircle(group, bodyRadius, p.surface, bodyOpacity, 0.02);
-      addFlatCircle(group, bodyRadius * 0.32, depth === 0 ? 0xfffaf0 : p.deep, depth === 0 ? 0.78 : 0.22, 0.045);
-
-      addEllipseLine(group, bodyRadius * 1.02, bodyRadius * 1.02, p.edge, ringOpacity, 0.06);
-      addEllipseLine(group, domainRadius * 0.76, domainRadius * 0.54, 0x1c1d1b, depth <= 1 ? 0.18 : 0.08, -0.04, -Math.PI * 0.1, Math.PI * 1.13);
-      addEllipseLine(group, domainRadius * 0.46, domainRadius * 0.34, p.line, depth <= 1 ? 0.22 : 0.12, -0.035, Math.PI * 0.28, Math.PI * 1.65);
-
-      if (depth <= 1) {
-        const markers = [
-          [-0.38, 0.32, 0.09],
-          [0.34, 0.2, 0.07],
-          [0.12, -0.36, 0.055],
-        ];
-        markers.forEach(([x, y, size], index) => {
-          addFlatCircle(group, radius * size, index === 1 ? p.edge : p.deep, 0.72, 0.08)
-            .position.set(x * radius, y * radius, 0.08);
-        });
-      }
-    }
-
-    function addCoreVisual(record) {
-      const { group, node, radius } = record;
-      const p = paletteFor(node);
-
-      const shell = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 1.05, 72, 44),
-        physicalMaterial(node, {
-          color: p.surface,
-          roughness: 0.05,
-          metalness: 0.02,
-          clearcoat: 1,
-          clearcoatRoughness: 0.06,
-          transmission: 0.42,
-          thickness: 0.8,
-          opacity: 0.42,
-          emissiveIntensity: 0.055,
-        })
-      );
-      shell.castShadow = true;
-      group.add(shell);
-      record.materials.push(shell.material);
-
-      const inner = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 0.42, 48, 28),
-        new THREE.MeshPhysicalMaterial({
-          color: 0xfff2ba,
-          metalness: 0.08,
-          roughness: 0.18,
-          clearcoat: 0.9,
-          clearcoatRoughness: 0.12,
-          emissive: p.accent,
-          emissiveIntensity: 0.5,
-          transparent: true,
-          opacity: 0.86,
-        })
-      );
-      group.add(inner);
-      record.materials.push(inner.material);
-
-      const latticeGeo = new THREE.IcosahedronGeometry(radius * 0.78, 2);
-      const lattice = new THREE.LineSegments(
-        new THREE.EdgesGeometry(latticeGeo),
-        lineMaterial(p.edge, 0.32)
-      );
-      group.add(lattice);
-      record.spinObjects.push({ object: lattice, speed: 0.00012, axis: "y" });
-
-      [
-        { scale: 1.28, rx: Math.PI / 2.45, ry: 0.3, speed: 0.00018 },
-        { scale: 1.52, rx: Math.PI / 2, ry: Math.PI / 3.2, speed: -0.00012 },
-        { scale: 1.78, rx: Math.PI / 2.7, ry: -Math.PI / 4.6, speed: 0.00008 },
-      ].forEach(spec => {
-        const ring = new THREE.Mesh(
-          new THREE.TorusGeometry(radius * spec.scale, radius * 0.012, 12, 160),
-          additiveMaterial(p.edge, 0.48)
-        );
-        ring.rotation.set(spec.rx, spec.ry, 0);
-        group.add(ring);
-        record.spinObjects.push({ object: ring, speed: spec.speed, axis: "z" });
-      });
-
-      const halo = new THREE.Mesh(
-        new THREE.TorusGeometry(radius * 2.25, radius * 0.01, 10, 180),
-        additiveMaterial(0xffffff, 0.11)
-      );
-      halo.rotation.x = Math.PI / 2;
-      group.add(halo);
-      record.spinObjects.push({ object: halo, speed: -0.00005, axis: "z" });
-    }
-
-    function addCompositeThemeVisual(record) {
-      const { group, node, radius } = record;
-      const p = paletteFor(node);
-      const body = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 64, 32),
-        physicalMaterial(node, {
-          color: p.surface,
-          roughness: 0.18,
-          metalness: 0.34,
-          clearcoat: 0.95,
-          emissive: p.line,
-          emissiveIntensity: 0.04,
-        })
-      );
-      body.scale.set(1.18, 1.04, 1.18);
-      body.castShadow = true;
-      group.add(body);
-      record.materials.push(body.material);
-
-      for (let i = -3; i <= 3; i++) {
-        const filament = new THREE.Mesh(
-          new THREE.TorusGeometry(radius * (1.34 + Math.abs(i) * 0.035), radius * 0.006, 8, 150),
-          additiveMaterial(i === 0 ? p.edge : p.accent, i === 0 ? 0.55 : 0.28)
-        );
-        filament.scale.set(1.1, 0.94, 1);
-        filament.rotation.set(Math.PI / 2 + i * 0.05, 0.18, Math.PI / 10);
-        filament.position.y = i * radius * 0.12;
-        group.add(filament);
-        record.spinObjects.push({ object: filament, speed: 0.00005 + i * 0.000003, axis: "z" });
-      }
-
-      const weaveGeo = new THREE.BufferGeometry();
-      const points = [];
-      for (let i = 0; i < 11; i++) {
-        const t = (i / 10 - 0.5) * Math.PI;
-        points.push(new THREE.Vector3(Math.cos(t) * radius * 1.2, Math.sin(t) * radius * 0.94, -radius * 0.64));
-        points.push(new THREE.Vector3(Math.cos(t) * radius * 1.2, Math.sin(t) * radius * 0.94, radius * 0.64));
-      }
-      weaveGeo.setFromPoints(points);
-      const weave = new THREE.LineSegments(weaveGeo, lineMaterial(p.edge, 0.22));
-      group.add(weave);
-    }
-
-    function addBatteryThemeVisual(record) {
-      const { group, node, radius } = record;
-      const p = paletteFor(node);
-
-      const shell = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 0.98, 56, 28),
-        physicalMaterial(node, {
-          color: p.surface,
-          roughness: 0.18,
-          metalness: 0.58,
-          clearcoat: 0.78,
-          emissiveIntensity: 0.075,
-        })
-      );
-      shell.scale.set(1.08, 1.04, 1.08);
-      group.add(shell);
-      record.materials.push(shell.material);
-
-      for (let i = -2; i <= 2; i++) {
-        const plate = new THREE.Mesh(
-          new THREE.CylinderGeometry(radius * (1.02 - Math.abs(i) * 0.04), radius * (1.02 - Math.abs(i) * 0.04), radius * 0.09, 64),
-          physicalMaterial(node, {
-            color: i % 2 ? 0x365870 : 0x263f56,
-            roughness: 0.28,
-            metalness: 0.5,
-            clearcoat: 0.65,
-            opacity: 0.9,
-            emissiveIntensity: i === 0 ? 0.09 : 0.025,
-          })
-        );
-        plate.rotation.x = Math.PI / 2;
-        plate.position.z = i * radius * 0.19;
-        group.add(plate);
-        record.materials.push(plate.material);
-
-        const edge = new THREE.Mesh(
-          new THREE.TorusGeometry(radius * (1.03 - Math.abs(i) * 0.04), radius * 0.008, 8, 120),
-          additiveMaterial(i === 0 ? p.edge : p.accent, i === 0 ? 0.5 : 0.24)
-        );
-        edge.rotation.x = Math.PI / 2;
-        edge.position.z = plate.position.z;
-        group.add(edge);
-      }
-
-      for (let i = 0; i < 18; i++) {
-        const a = Math.random() * Math.PI * 2;
-        const r = radius * (0.15 + Math.random() * 0.74);
-        const particle = new THREE.Mesh(
-          new THREE.SphereGeometry(radius * (0.025 + Math.random() * 0.025), 10, 8),
-          additiveMaterial(i % 4 === 0 ? p.edge : p.accent, 0.42)
-        );
-        particle.position.set(Math.cos(a) * r, Math.sin(a) * r * 0.78, radius * 0.67 + Math.random() * 0.04);
-        group.add(particle);
-      }
-    }
-
-    function addSimulationVisual(record) {
-      const { group, node, radius } = record;
-      const p = paletteFor(node);
-      const body = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(radius, 2),
-        physicalMaterial(node, {
-          color: p.surface,
-          roughness: 0.24,
-          metalness: 0.36,
-          clearcoat: 0.74,
-          emissiveIntensity: 0.035,
-          opacity: record.prominence > 0.6 ? 0.98 : 0.76,
-        })
-      );
-      group.add(body);
-      record.materials.push(body.material);
-
-      const wire = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(radius * 1.015, 2)),
-        lineMaterial(p.edge, 0.2 + record.prominence * 0.22)
-      );
-      group.add(wire);
-      record.spinObjects.push({ object: wire, speed: 0.00008, axis: "y" });
-
-      const contour = new THREE.Mesh(
-        new THREE.TorusGeometry(radius * 1.12, radius * 0.008, 8, 96),
-        additiveMaterial(p.line, 0.22)
-      );
-      contour.rotation.set(Math.PI / 2.3, Math.PI / 6, 0);
-      group.add(contour);
-    }
-
-    function addExperimentalVisual(record) {
-      const { group, node, radius } = record;
-      const p = paletteFor(node);
-      const block = new THREE.Mesh(
-        new THREE.BoxGeometry(radius * 1.28, radius * 0.78, radius * 1.1, 2, 2, 2),
-        physicalMaterial(node, {
-          color: p.surface,
-          roughness: 0.2,
-          metalness: 0.7,
-          clearcoat: 0.55,
-          emissiveIntensity: 0.025,
-          opacity: record.prominence > 0.6 ? 1 : 0.82,
-        })
-      );
-      block.rotation.set(0.18, 0.45, -0.12);
-      group.add(block);
-      record.materials.push(block.material);
-
-      const dial = new THREE.Mesh(
-        new THREE.CylinderGeometry(radius * 0.42, radius * 0.42, radius * 0.08, 36),
-        additiveMaterial(p.edge, 0.36)
-      );
-      dial.rotation.x = Math.PI / 2;
-      dial.position.z = radius * 0.58;
-      group.add(dial);
-
-      const rodMat = additiveMaterial(p.accent, 0.28);
-      const rodA = makeCylinderBetween(
-        new THREE.Vector3(-radius * 0.8, -radius * 0.42, 0),
-        new THREE.Vector3(radius * 0.8, -radius * 0.42, 0),
-        radius * 0.025,
-        rodMat
-      );
-      group.add(rodA);
-    }
-
-    function addMolecularVisual(record) {
-      const { group, node, radius } = record;
-      const p = paletteFor(node);
-      const atoms = [
-        [-0.52, 0.05, 0.1],
-        [-0.16, 0.36, -0.18],
-        [0.25, 0.12, 0.2],
-        [0.48, -0.25, -0.08],
-        [-0.05, -0.38, 0.22],
-        [0.05, 0.02, -0.42],
-      ].map(values => new THREE.Vector3(values[0] * radius * 1.5, values[1] * radius * 1.5, values[2] * radius * 1.5));
-
-      const atomMats = [
-        physicalMaterial(node, { color: p.surface, roughness: 0.09, metalness: 0.06, transmission: 0.22, opacity: 0.78, emissiveIntensity: 0.1 }),
-        additiveMaterial(p.accent, 0.7),
-        additiveMaterial(p.edge, 0.58),
-      ];
-
-      atoms.forEach((position, index) => {
-        const atom = new THREE.Mesh(
-          new THREE.SphereGeometry(radius * (index === 0 ? 0.27 : 0.18), 26, 18),
-          atomMats[index % atomMats.length]
-        );
-        atom.position.copy(position);
-        group.add(atom);
-        if (atom.material.isMeshPhysicalMaterial) record.materials.push(atom.material);
-      });
-
-      const bondMat = additiveMaterial(p.line, 0.38);
-      [[0, 1], [1, 2], [2, 3], [2, 5], [0, 4], [4, 3]].forEach(([a, b]) => {
-        group.add(makeCylinderBetween(atoms[a], atoms[b], radius * 0.025, bondMat.clone(), 8));
-      });
-
-      const shell = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(radius * 1.05, 1),
-        new THREE.MeshBasicMaterial({
-          color: p.edge,
-          transparent: true,
-          opacity: 0.1,
-          wireframe: true,
-          depthWrite: false,
-        })
-      );
-      group.add(shell);
-      record.spinObjects.push({ object: shell, speed: -0.00011, axis: "y" });
-    }
-
-    function addProcessVisual(record) {
-      const { group, node, radius } = record;
-      const p = paletteFor(node);
-      const body = new THREE.Mesh(
-        new THREE.CapsuleGeometry(radius * 0.45, radius * 1.16, 8, 24),
-        physicalMaterial(node, {
-          color: p.surface,
-          roughness: 0.18,
-          metalness: 0.58,
-          clearcoat: 0.72,
-          emissiveIntensity: 0.035,
-          opacity: record.prominence > 0.6 ? 1 : 0.78,
-        })
-      );
-      body.rotation.z = Math.PI / 2;
-      body.scale.set(1.05, 0.8, 0.8);
-      group.add(body);
-      record.materials.push(body.material);
-
-      const path = new THREE.Mesh(
-        new THREE.TorusGeometry(radius * 0.9, radius * 0.012, 8, 120),
-        additiveMaterial(p.edge, 0.28)
-      );
-      path.scale.set(1.55, 0.42, 1);
-      path.rotation.set(Math.PI / 2, 0, -0.18);
-      group.add(path);
-      record.spinObjects.push({ object: path, speed: 0.00008, axis: "z" });
-
-      for (let i = -1; i <= 1; i++) {
-        const gate = new THREE.Mesh(
-          new THREE.BoxGeometry(radius * 0.1, radius * 0.72, radius * 0.72),
-          additiveMaterial(i === 0 ? p.edge : p.accent, i === 0 ? 0.42 : 0.24)
-        );
-        gate.position.x = i * radius * 0.48;
-        group.add(gate);
-      }
-    }
-
-    function addOutputVisual(record) {
-      const { group, node, radius } = record;
-      const p = paletteFor(node);
-      for (let i = 0; i < 3; i++) {
-        const panel = new THREE.Mesh(
-          new THREE.BoxGeometry(radius * 1.0, radius * 1.24, radius * 0.035),
-          physicalMaterial(node, {
-            color: i === 1 ? p.surface : p.deep,
-            roughness: 0.08,
-            metalness: 0.04,
-            clearcoat: 0.88,
-            transmission: 0.18,
-            opacity: 0.38,
-            emissive: p.accent,
-            emissiveIntensity: i === 1 ? 0.09 : 0.04,
-          })
-        );
-        panel.position.set((i - 1) * radius * 0.22, (1 - i) * radius * 0.08, i * radius * 0.12);
-        panel.rotation.set(0.08, -0.25 + i * 0.11, 0.04);
-        group.add(panel);
-        record.materials.push(panel.material);
-      }
-
-      const edge = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.BoxGeometry(radius * 1.08, radius * 1.32, radius * 0.04)),
-        lineMaterial(p.edge, 0.34)
-      );
-      group.add(edge);
-    }
-
-    function addNodeVisual(record) {
-      addDiagramNodeVisual(record);
-    }
-
-    function addHitArea(record) {
-      const hit = new THREE.Mesh(
-        new THREE.SphereGeometry(record.radius * 1.85, 18, 12),
-        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
-      );
-      hit.userData.nodeId = record.node.id;
-      hit.name = `hit-${record.node.id}`;
-      record.group.add(hit);
-      interactiveMeshes.push(hit);
-    }
-
-    function addLabel(record) {
-      const { group, node, depth, radius } = record;
-      const p = paletteFor(node);
-      const label = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: makeLabelTexture(node.name, p.edge, depth),
-        transparent: true,
-        depthTest: false,
-        opacity: depth <= 1 ? 0.92 : 0.72,
-        toneMapped: false,
-      }));
-      const labelWidth = depth === 0 ? 5.4 : depth === 1 ? 7.4 : 5.1;
-      label.position.set(0, radius + (depth <= 1 ? 1.12 : 0.88), 0);
-      label.scale.set(labelWidth, labelWidth * 0.235, 1);
-      group.add(label);
-      labelRecords.push({ nodeId: node.id, sprite: label, depth, baseOpacity: label.material.opacity });
-    }
-
-    function fitPlane(record, imageSize) {
-      const aspect = Math.max(0.25, Math.min(4, imageSize.width / Math.max(1, imageSize.height)));
-      let width = record.maxWidth;
-      let height = width / aspect;
-      if (height > record.maxHeight) {
-        height = record.maxHeight;
-        width = height * aspect;
-      }
-
-      record.plane.scale.set(width, height, 1);
-      record.glow.scale.set(width * 1.04, height * 1.06, 1);
-      record.edge.scale.set(width * 1.012, height * 1.012, 1);
-      record.caption.position.y = -height * 0.5 - 0.34;
-    }
-
-    function addImagePreview(record) {
-      const { item, node, radius, group } = record;
-      const src = node.preview || (node.images && node.images[0] && node.images[0].src);
-      const p = paletteFor(node);
-      const compact = isCompactView();
-      const maxWidth = compact ? (item.depth === 1 ? 2.2 : 1.58) : (item.depth === 1 ? 3.2 : 2.36);
-      const maxHeight = maxWidth * 0.64;
-      const side = item.depth >= 2
-        ? (item.pos.x < 0 ? 1 : -1)
-        : (item.pos.x < 0 ? -1 : 1);
-
-      const display = new THREE.Group();
-      display.position.set(side * (radius + (compact ? 1.08 : 1.72)), -0.03, item.depth === 1 ? 0.10 : 0.05);
-      display.userData.nodeId = node.id;
-      group.add(display);
-
-      const plane = new THREE.Mesh(
-        new THREE.PlaneGeometry(1, 1),
-        new THREE.MeshBasicMaterial({
-          map: makeFallbackPreviewTexture(node),
-          transparent: true,
-          opacity: node.id === selectedId ? 0.92 : 0.56,
-          side: THREE.DoubleSide,
-          toneMapped: false,
-        })
-      );
-      display.add(plane);
-
-      const glow = new THREE.Mesh(
-        new THREE.PlaneGeometry(1, 1),
-        new THREE.MeshBasicMaterial({
-          color: 0xd9d9d5,
-          transparent: true,
-          opacity: node.id === selectedId ? 0.34 : 0.11,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-          toneMapped: false,
-        })
-      );
-      glow.position.z = -0.035;
-      display.add(glow);
-
-      const edge = new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1)),
-        lineMaterial(p.edge, node.id === selectedId ? 0.56 : 0.16)
-      );
-      edge.position.z = 0.018;
-      display.add(edge);
-
-      const firstCaption = node.images?.[0]?.caption || node.name;
-      const caption = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: makeCaptionTexture(firstCaption, p.edge),
-        transparent: true,
-        depthTest: false,
-        opacity: node.id === selectedId ? 0.84 : 0,
-        toneMapped: false,
-      }));
-      caption.scale.set(maxWidth * 0.95, maxWidth * 0.14, 1);
-      display.add(caption);
-
-      const previewRecord = {
-        nodeId: node.id,
-        group: display,
-        plane,
-        glow,
-        edge,
-        caption,
-        maxWidth,
-        maxHeight,
-        side,
-      };
-      fitPlane(previewRecord, { width: 1400, height: 900 });
-      previewRecords.push(previewRecord);
-
-      loadTextureSafe(src, node, (texture, imageSize) => {
-        if (plane.material.map) plane.material.map.dispose();
-        plane.material.map = texture;
-        plane.material.needsUpdate = true;
-        fitPlane(previewRecord, imageSize);
-      });
-    }
-
-    function addConnection(parentItem, childItem) {
-      const parent = parentItem.node;
-      const child = childItem.node;
-      const active = selectedPath.has(parent.id) && selectedPath.has(child.id);
-      const childPalette = paletteFor(child);
-      const color = active ? 0x1c1d1b : childPalette.line;
-      const from = parentItem.pos.clone();
-      const to = childItem.pos.clone();
-      const distance = from.distanceTo(to);
-      const mid = from.clone().lerp(to, 0.5);
-      mid.y += 0.24 + distance * 0.04;
-      mid.z += (childItem.pos.x < 0 ? -1 : 1) * 0.12;
-      const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
-
-      const radius = active ? 0.018 : 0.009;
-      const tube = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 72, radius, 6, false),
-        new THREE.MeshBasicMaterial({
-          color,
-          transparent: true,
-          opacity: active ? 0.78 : 0.36,
-          depthWrite: false,
-          toneMapped: false,
-        })
-      );
-      researchGroup.add(tube);
-
-      const glow = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 72, radius * 4.2, 6, false),
-        new THREE.MeshBasicMaterial({
-          color: 0xd9d9d5,
-          transparent: true,
-          opacity: active ? 0.24 : 0.10,
-          depthWrite: false,
-          toneMapped: false,
-        })
-      );
-      researchGroup.add(glow);
-
-      const pulseCount = active ? 3 : 1;
-      for (let i = 0; i < pulseCount; i++) {
-        const packet = new THREE.Mesh(
-          new THREE.BoxGeometry(active ? 0.14 : 0.09, active ? 0.14 : 0.09, 0.018),
-          flatMaterial(active ? 0x1c1d1b : childPalette.edge, active ? 0.82 : 0.52)
-        );
-        researchGroup.add(packet);
-        connectorRecords.push({
-          packet,
-          curve,
-          phase: Math.random() + i / pulseCount,
-          speed: active ? 0.00018 : 0.000075,
-        });
-      }
     }
 
     function nodeRadius(depth) {
-      if (depth === 0) return 1.42;
-      if (depth === 1) return 1.08;
-      if (depth === 2) return 0.64;
-      return 0.48;
+      if (depth === 0) return 58;
+      if (depth === 1) return 48;
+      if (depth === 2) return 31;
+      return 22;
     }
 
-    function rebuildMap() {
-      clearResearchGroup();
-      selectedPath = getPathIds(selectedId);
-      const items = visibleItems();
-      layoutItems(items);
+    function labelLines(text, depth) {
+      const normalized = text
+        .replace("Theme I — ", "Theme I|")
+        .replace("Theme II — ", "Theme II|");
+      if (normalized.includes("|")) return normalized.split("|").filter(Boolean);
 
-      items.forEach(item => {
-        if (item.parentObj) addConnection(item.parentObj, item);
+      const limit = depth <= 1 ? 28 : 24;
+      if (normalized.length <= limit) return [normalized];
+
+      const words = normalized.split(/\s+/);
+      const lines = [];
+      let line = "";
+      words.forEach(word => {
+        const next = line ? `${line} ${word}` : word;
+        if (next.length > limit && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = next;
+        }
+      });
+      if (line) lines.push(line);
+      return lines.slice(0, depth <= 1 ? 2 : 3).map(item => (
+        item.length > limit + 6 ? `${item.slice(0, limit + 3)}...` : item
+      ));
+    }
+
+    function connectionPath(parentItem, childItem) {
+      const from = parentItem.pos;
+      const to = childItem.pos;
+      const side = to.x >= from.x ? 1 : -1;
+      const curve = clamp(Math.abs(to.x - from.x) * 0.48, 80, 170);
+      const lift = childItem.depth === 1 ? -24 : 0;
+      return `M ${from.x} ${from.y} C ${from.x + side * curve} ${from.y + lift}, ${to.x - side * curve} ${to.y - lift}, ${to.x} ${to.y}`;
+    }
+
+    function createDefs() {
+      const defs = svgEl("defs");
+      const shadow = svgEl("filter", {
+        id: "soft-paper-shadow",
+        x: "-20%",
+        y: "-20%",
+        width: "140%",
+        height: "140%",
+      });
+      shadow.append(
+        svgEl("feDropShadow", {
+          dx: "0",
+          dy: "5",
+          stdDeviation: "5",
+          "flood-color": "#1c1d1b",
+          "flood-opacity": ".14",
+        })
+      );
+      defs.append(shadow);
+
+      const arrowSoft = svgEl("marker", {
+        id: "arrow-soft",
+        markerWidth: "9",
+        markerHeight: "9",
+        refX: "8",
+        refY: "4.5",
+        orient: "auto",
+        markerUnits: "strokeWidth",
+      });
+      arrowSoft.append(svgEl("path", { d: "M 0 0 L 9 4.5 L 0 9 z", fill: "#9da4a1", opacity: ".65" }));
+      defs.append(arrowSoft);
+
+      const arrowActive = svgEl("marker", {
+        id: "arrow-active",
+        markerWidth: "10",
+        markerHeight: "10",
+        refX: "9",
+        refY: "5",
+        orient: "auto",
+        markerUnits: "strokeWidth",
+      });
+      arrowActive.append(svgEl("path", { d: "M 0 0 L 10 5 L 0 10 z", fill: "#1c1d1b", opacity: ".86" }));
+      defs.append(arrowActive);
+      return defs;
+    }
+
+    function shouldShowPreview(item) {
+      if (!item.node.preview && !item.node.images?.length) return false;
+      if (item.depth === 0) return false;
+      if (item.depth === 1) return true;
+      return item.node.id === selectedId || (selectedPath.has(item.node.id) && item.depth <= 2);
+    }
+
+    function addBackgroundSketch(layer, items) {
+      const root = items.find(item => item.depth === 0);
+      if (!root) return;
+
+      layer.append(svgEl("ellipse", {
+        class: "atlas-orbit is-wide",
+        cx: "0",
+        cy: "118",
+        rx: "700",
+        ry: "64",
+      }));
+
+      items.filter(item => item.depth <= 1).forEach(item => {
+        const radius = nodeRadius(item.depth);
+        const p = paletteFor(item.node);
+        layer.append(svgEl("ellipse", {
+          class: "atlas-domain",
+          cx: item.pos.x,
+          cy: item.pos.y,
+          rx: radius * (item.depth === 0 ? 3.25 : 2.95),
+          ry: radius * (item.depth === 0 ? 2.1 : 1.9),
+          fill: p.wash,
+        }));
+        layer.append(svgEl("ellipse", {
+          class: "atlas-orbit",
+          cx: item.pos.x,
+          cy: item.pos.y,
+          rx: radius * (item.depth === 0 ? 2.15 : 2.42),
+          ry: radius * (item.depth === 0 ? 1.28 : 1.38),
+        }));
+      });
+    }
+
+    function addConnections(layer, packetLayer, items) {
+      items.forEach((item, index) => {
+        if (!item.parentObj) return;
+        const active = selectedPath.has(item.node.id) && selectedPath.has(item.parentObj.node.id);
+        const p = paletteFor(item.node);
+        const path = svgEl("path", {
+          class: `diagram-link${active ? " is-active" : ""}`,
+          d: connectionPath(item.parentObj, item),
+          stroke: active ? "#1c1d1b" : p.line,
+          "marker-end": active ? "url(#arrow-active)" : "url(#arrow-soft)",
+        });
+        layer.append(path);
+
+        const packetCount = active ? 3 : 1;
+        const packets = [];
+        for (let i = 0; i < packetCount; i++) {
+          const packet = svgEl("rect", {
+            class: `data-packet${active ? " is-active" : ""}`,
+            width: active ? "8" : "6",
+            height: active ? "8" : "6",
+            rx: "1",
+            fill: active ? "#1c1d1b" : p.accent,
+          });
+          packetLayer.append(packet);
+          packets.push(packet);
+        }
+
+        connectionRecords.push({
+          path,
+          packets,
+          length: 0,
+          phase: (index * 0.137) % 1,
+          speed: active ? 0.00018 : 0.00008,
+        });
+      });
+    }
+
+    function addLabel(group, item, radius) {
+      const lines = labelLines(item.node.name, item.depth);
+      const fontSize = item.depth <= 1 ? 13 : 11;
+      const lineHeight = fontSize + 3;
+      const labelWidth = Math.max(...lines.map(line => line.length)) * fontSize * 0.54 + 24;
+      const labelHeight = lines.length * lineHeight + 12;
+      const y = -radius - labelHeight - (item.depth <= 1 ? 16 : 10);
+      const p = paletteFor(item.node);
+
+      group.append(svgEl("rect", {
+        class: "node-label-bg",
+        x: -labelWidth / 2,
+        y,
+        width: labelWidth,
+        height: labelHeight,
+        rx: "3",
+        stroke: selectedPath.has(item.node.id) ? p.accent : "rgba(28,29,27,.16)",
+      }));
+
+      const text = svgEl("text", {
+        class: "node-label",
+        x: "0",
+        y: y + 12 + fontSize * 0.76,
+        "font-size": fontSize,
+      });
+      lines.forEach((line, index) => {
+        text.append(svgEl("tspan", {
+          x: "0",
+          dy: index ? lineHeight : 0,
+        }, line));
+      });
+      group.append(text);
+    }
+
+    function addNode(layer, item) {
+      const node = item.node;
+      const radius = nodeRadius(item.depth);
+      const p = paletteFor(node);
+      const selected = node.id === selectedId;
+      const pathActive = selectedPath.has(node.id);
+      const prominence = nodeProminence(node.id);
+      const group = svgEl("g", {
+        class: [
+          "map-node",
+          selected ? "is-selected" : "",
+          pathActive ? "is-path" : "",
+          node.children?.length ? "has-children" : "",
+        ].filter(Boolean).join(" "),
+        transform: `translate(${item.pos.x} ${item.pos.y})`,
+        opacity: prominence,
+        "data-node-id": node.id,
       });
 
-      items.forEach(item => {
-        const node = item.node;
-        const depth = item.depth;
-        const prominence = nodeProminence(node.id);
-        const group = new THREE.Group();
-        group.position.copy(item.pos);
-        group.scale.setScalar(0.01);
-        group.userData.nodeId = node.id;
-        group.userData.birth = performance.now();
-        researchGroup.add(group);
+      group.append(svgEl("title", {}, node.name));
+      group.append(svgEl("circle", {
+        class: "node-hit",
+        r: radius + 24,
+      }));
+      group.append(svgEl("circle", {
+        class: "node-shadow",
+        cx: radius * 0.08,
+        cy: radius * 0.1,
+        r: radius * 1.04,
+      }));
+      group.append(svgEl("circle", {
+        class: "node-body",
+        r: radius,
+        fill: p.surface,
+        filter: "url(#soft-paper-shadow)",
+      }));
+      group.append(svgEl("circle", {
+        class: "node-outline",
+        r: radius,
+        stroke: selected || pathActive ? p.accent : "#1c1d1b",
+      }));
+      group.append(svgEl("circle", {
+        class: "node-center",
+        r: radius * (item.depth === 0 ? 0.32 : 0.18),
+        fill: item.depth === 0 ? "#fffaf0" : p.deep,
+      }));
 
-        const record = {
-          item,
-          node,
-          depth,
-          group,
-          radius: nodeRadius(depth),
-          prominence,
-          archetype: classifyNode(node, depth),
-          materials: [],
-          spinObjects: [],
-        };
-
-        addNodeVisual(record);
-        addHitArea(record);
-        addLabel(record);
-        if (depth > 0) addImagePreview(record);
-        nodeRecords.set(node.id, record);
+      [
+        [-0.38, -0.22, 0.08],
+        [0.18, -0.34, 0.06],
+        [0.28, 0.18, 0.05],
+      ].forEach(([x, y, size], index) => {
+        group.append(svgEl("circle", {
+          class: "node-marker",
+          cx: x * radius,
+          cy: y * radius,
+          r: radius * size,
+          fill: index === 0 ? p.deep : "#1c1d1b",
+        }));
       });
 
-      updateFocusTarget(true);
+      if (node.children?.length) {
+        const isExpanded = expanded.has(node.id);
+        const badge = svgEl("g", {
+          class: "branch-badge",
+          transform: `translate(${radius * 0.78} ${radius * 0.76})`,
+        });
+        badge.append(svgEl("circle", { r: item.depth <= 1 ? "11" : "9", fill: "#fffaf0", stroke: p.accent }));
+        badge.append(svgEl("path", {
+          d: isExpanded ? "M -5 0 H 5" : "M -5 0 H 5 M 0 -5 V 5",
+          stroke: p.accent,
+          "stroke-width": "1.8",
+          "stroke-linecap": "round",
+        }));
+        group.append(badge);
+      }
+
+      addLabel(group, item, radius);
+      group.addEventListener("mouseenter", () => {
+        hoveredId = node.id;
+        group.classList.add("is-hovered");
+      });
+      group.addEventListener("mouseleave", () => {
+        if (hoveredId === node.id) hoveredId = null;
+        group.classList.remove("is-hovered");
+      });
+      group.addEventListener("click", event => {
+        event.stopPropagation();
+        if (ignoreNextClick || dragMoved >= 18) return;
+        selectNode(node.id, true);
+      });
+      layer.append(group);
+    }
+
+    function addPreview(layer, item) {
+      if (!shouldShowPreview(item)) return;
+      const node = item.node;
+      const src = node.preview || node.images?.[0]?.src;
+      const radius = nodeRadius(item.depth);
+      const side = item.pos.x < 0 ? -1 : 1;
+      const width = item.depth === 1 ? 98 : 78;
+      const height = item.depth === 1 ? 62 : 50;
+      const x = item.pos.x + side * (radius + width * 0.74);
+      const y = item.pos.y + radius * 0.22;
+      const p = paletteFor(node);
+      const group = svgEl("g", {
+        class: `preview-card${selectedPath.has(node.id) ? " is-path" : ""}`,
+        transform: `translate(${x} ${y})`,
+        "data-node-id": node.id,
+      });
+      group.addEventListener("click", event => {
+        event.stopPropagation();
+        if (ignoreNextClick || dragMoved >= 18) return;
+        selectNode(node.id, true);
+      });
+
+      group.append(svgEl("rect", {
+        x: -width / 2,
+        y: -height / 2,
+        width,
+        height,
+        rx: "3",
+        fill: "#fffaf0",
+        stroke: p.accent,
+      }));
+      group.append(svgEl("image", {
+        href: src,
+        x: -width / 2 + 5,
+        y: -height / 2 + 5,
+        width: width - 10,
+        height: height - 10,
+        preserveAspectRatio: "xMidYMid meet",
+      }));
+      layer.append(group);
     }
 
     function renderDetails(id) {
       selectedId = id;
+      selectedPath = getPathIds(id);
       const node = nodesById.get(id);
       if (!node) return;
 
@@ -1366,93 +604,129 @@
       nextList.innerHTML = (node.next || []).map(item => `<li>${escapeHtml(item)}</li>`).join("") || `<li class="empty">No current or next work listed yet.</li>`;
     }
 
-    function updateFocusTarget(animateCamera = true) {
-      const item = itemById.get(selectedId);
-      if (!item || selectedId === "core") {
-        targetFocusOffset.set(0, 0, 0);
-        if (animateCamera) targetCameraDistance = defaultCameraDistance();
-        return;
-      }
+    function fitToItems(items, immediate = false) {
+      if (!items.length) return;
+      const padding = Math.max(58, Math.min(view.width, view.height) * 0.14);
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
 
-      const depth = depthById.get(selectedId) || 0;
-      const compact = isCompactView();
-      const selectedItems = Array.from(itemById.values()).filter(candidate => isDescendantOf(candidate.node.id, selectedId));
-      const center = new THREE.Vector3();
-      const min = new THREE.Vector3(Infinity, Infinity, Infinity);
-      const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
-
-      selectedItems.forEach(candidate => {
-        center.add(candidate.pos);
-        min.min(candidate.pos);
-        max.max(candidate.pos);
+      items.forEach(item => {
+        const radius = nodeRadius(item.depth);
+        const labelPad = item.depth <= 1 ? 96 : 72;
+        const fontSize = item.depth <= 1 ? 13 : 11;
+        const labelHalfWidth = Math.max(...labelLines(item.node.name, item.depth).map(line => line.length)) * fontSize * 0.27 + 18;
+        const previewPad = shouldShowPreview(item) ? (item.depth === 1 ? 142 : 112) : 0;
+        const xPad = Math.max(radius * (item.depth <= 1 ? 3.35 : 2.4), labelHalfWidth) + previewPad;
+        minX = Math.min(minX, item.pos.x - xPad);
+        maxX = Math.max(maxX, item.pos.x + xPad);
+        minY = Math.min(minY, item.pos.y - radius * 2.65 - labelPad);
+        maxY = Math.max(maxY, item.pos.y + radius * 2.3 + 54);
       });
-      center.multiplyScalar(1 / Math.max(1, selectedItems.length));
 
-      const focusAmount = compact ? 0.16 : 0.32;
-      targetFocusOffset.copy(center).multiplyScalar(-focusAmount);
-      targetFocusOffset.y += compact ? -0.05 : 0.12;
+      const contentWidth = Math.max(1, maxX - minX);
+      const contentHeight = Math.max(1, maxY - minY);
+      const nextScale = clamp(
+        Math.min((view.width - padding * 2) / contentWidth, (view.height - padding * 2) / contentHeight),
+        0.18,
+        1.42
+      );
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const nextTx = view.width / 2 - centerX * nextScale;
+      const nextTy = view.height / 2 - centerY * nextScale;
 
-      if (animateCamera) {
-        const span = Math.max(max.x - min.x, max.y - min.y, max.z - min.z);
-        const subtreeOpen = selectedItems.length > 1;
-        const fittedDistance = subtreeOpen
-          ? defaultCameraDistance() + span * (compact ? 0.62 : 0.5)
-          : defaultCameraDistance() - Math.min(6, depth * 1.35);
-        targetCameraDistance = Math.max(18, Math.min(maxCameraDistance(), fittedDistance));
+      view.baseScale = nextScale;
+      view.baseTx = nextTx;
+      view.baseTy = nextTy;
+      view.targetScale = nextScale;
+      view.targetTx = nextTx;
+      view.targetTy = nextTy;
+
+      if (immediate) {
+        view.scale = nextScale;
+        view.tx = nextTx;
+        view.ty = nextTy;
+        applyTransform();
       }
     }
 
-    function resizeRenderer() {
+    function applyTransform() {
+      if (!worldGroup) return;
+      worldGroup.setAttribute("transform", `translate(${view.tx} ${view.ty}) scale(${view.scale})`);
+    }
+
+    function rebuildMap(options = {}) {
+      const fit = options.fit ?? false;
+      selectedPath = getPathIds(selectedId);
+      connectionRecords.length = 0;
+      clear(svg);
+      svg.append(createDefs());
+      worldGroup = svgEl("g", { class: "map-world" });
+
+      const backgroundLayer = svgEl("g", { class: "background-layer" });
+      const connectionLayer = svgEl("g", { class: "connection-layer" });
+      const packetLayer = svgEl("g", { class: "packet-layer" });
+      const previewLayer = svgEl("g", { class: "preview-layer" });
+      const nodeLayer = svgEl("g", { class: "node-layer" });
+
+      worldGroup.append(backgroundLayer, connectionLayer, packetLayer, previewLayer, nodeLayer);
+      svg.append(worldGroup);
+
+      const items = visibleItems();
+      layoutItems(items);
+      addBackgroundSketch(backgroundLayer, items);
+      addConnections(connectionLayer, packetLayer, items);
+      items.forEach(item => addPreview(previewLayer, item));
+      items.forEach(item => addNode(nodeLayer, item));
+
+      requestAnimationFrame(() => {
+        connectionRecords.forEach(record => {
+          record.length = record.path.getTotalLength();
+        });
+      });
+
+      if (fit) fitToItems(items, options.immediate ?? false);
+      applyTransform();
+    }
+
+    function resizeMap(forceFit = false) {
       const rect = canvasWrap.getBoundingClientRect();
-      renderer.setSize(Math.max(1, rect.width), Math.max(1, rect.height), false);
-      camera.aspect = rect.width / Math.max(1, rect.height);
-      camera.updateProjectionMatrix();
+      view.width = Math.max(1, rect.width);
+      view.height = Math.max(1, rect.height);
+      svg.setAttribute("viewBox", `0 0 ${view.width} ${view.height}`);
+      svg.setAttribute("width", view.width);
+      svg.setAttribute("height", view.height);
 
-      const compact = isCompactView();
-      if (compact !== lastCompact) {
-        lastCompact = compact;
-        targetCameraDistance = defaultCameraDistance();
-        rebuildMap();
+      const sizeChanged = Math.abs(view.width - lastSize.width) > 4 || Math.abs(view.height - lastSize.height) > 4;
+      lastSize = { width: view.width, height: view.height };
+      if (forceFit || (sizeChanged && !view.userMoved)) {
+        const items = Array.from(itemById.values());
+        if (items.length) fitToItems(items, true);
       }
+      applyTransform();
     }
 
-    function updatePointer(event) {
-      const rect = canvas.getBoundingClientRect();
-      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    function clientPoint(event) {
+      const rect = svg.getBoundingClientRect();
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
     }
 
-    function updateHover() {
-      raycaster.setFromCamera(pointer, camera);
-      const hit = raycaster.intersectObjects(interactiveMeshes, true)[0];
-      hoveredId = hit ? hit.object.userData.nodeId : nearestNodeIdFromPointer(34);
-      canvas.style.cursor = hoveredId ? "pointer" : "grab";
-    }
+    function zoomAt(event) {
+      event.preventDefault();
+      const point = clientPoint(event);
+      const nextScale = clamp(view.targetScale * Math.exp(-event.deltaY * 0.001), 0.18, 2.6);
+      const worldX = (point.x - view.targetTx) / view.targetScale;
+      const worldY = (point.y - view.targetTy) / view.targetScale;
 
-    function nearestNodeIdFromPointer(threshold = 46) {
-      const rect = canvas.getBoundingClientRect();
-      let nearestId = null;
-      let nearestDistance = Infinity;
-
-      nodeRecords.forEach(record => {
-        record.group.getWorldPosition(worldPosition);
-        projectedPosition.copy(worldPosition).project(camera);
-        if (projectedPosition.z < -1 || projectedPosition.z > 1) return;
-
-        const sx = (projectedPosition.x * 0.5 + 0.5) * rect.width;
-        const sy = (-projectedPosition.y * 0.5 + 0.5) * rect.height;
-        const px = (pointer.x * 0.5 + 0.5) * rect.width;
-        const py = (-pointer.y * 0.5 + 0.5) * rect.height;
-        const distance = Math.hypot(px - sx, py - sy);
-        const allowed = threshold + record.radius * (record.depth <= 1 ? 22 : 16);
-
-        if (distance < allowed && distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestId = record.node.id;
-        }
-      });
-
-      return nearestId;
+      view.targetScale = nextScale;
+      view.targetTx = point.x - worldX * nextScale;
+      view.targetTy = point.y - worldY * nextScale;
+      view.userMoved = true;
     }
 
     function selectNode(id, shouldToggleBranch) {
@@ -1462,179 +736,130 @@
       if (shouldToggleBranch && node.children?.length) {
         expanded.has(id) ? expanded.delete(id) : expanded.add(id);
       }
-      rebuildMap();
+      view.userMoved = false;
+      rebuildMap({ fit: true });
     }
 
     function resetView() {
-      targetRotationX = 0;
-      targetRotationY = 0;
-      targetCameraDistance = defaultCameraDistance();
-      targetFocusOffset.set(0, 0, 0);
+      view.userMoved = false;
+      fitToItems(Array.from(itemById.values()), false);
     }
 
-    canvas.addEventListener("pointerdown", event => {
+    svg.addEventListener("pointerdown", event => {
+      if (event.button != null && event.button !== 0) return;
+      const target = event.target.closest?.("[data-node-id]");
+      pointerDownNodeId = target ? target.getAttribute("data-node-id") : null;
       isDragging = true;
       dragMoved = 0;
       lastX = event.clientX;
       lastY = event.clientY;
-      canvas.style.cursor = "grabbing";
-      canvas.setPointerCapture(event.pointerId);
+      svg.classList.add("is-panning");
+      svg.setPointerCapture?.(event.pointerId);
     });
 
-    canvas.addEventListener("pointermove", event => {
-      updatePointer(event);
-      if (isDragging) {
-        const dx = event.clientX - lastX;
-        const dy = event.clientY - lastY;
-        dragMoved += Math.abs(dx) + Math.abs(dy);
-        targetRotationY += dx * 0.005;
-        targetRotationX = Math.max(-0.9, Math.min(0.86, targetRotationX + dy * 0.0035));
-        lastX = event.clientX;
-        lastY = event.clientY;
-      } else {
-        updateHover();
-      }
+    svg.addEventListener("pointermove", event => {
+      if (!isDragging) return;
+      const dx = event.clientX - lastX;
+      const dy = event.clientY - lastY;
+      dragMoved += Math.abs(dx) + Math.abs(dy);
+      view.targetTx += dx;
+      view.targetTy += dy;
+      view.userMoved = true;
+      lastX = event.clientX;
+      lastY = event.clientY;
     });
 
-    canvas.addEventListener("pointerup", event => {
+    svg.addEventListener("pointerup", () => {
+      const clickNodeId = pointerDownNodeId;
+      const wasDrag = dragMoved >= 18;
+      pointerDownNodeId = null;
       isDragging = false;
-      canvas.style.cursor = hoveredId ? "pointer" : "grab";
-      if (dragMoved >= 8) return;
-      updatePointer(event);
-      updateHover();
-      if (hoveredId) selectNode(hoveredId, true);
-    });
-
-    canvas.addEventListener("pointercancel", () => {
-      isDragging = false;
-      canvas.style.cursor = "grab";
-    });
-
-    canvas.addEventListener("wheel", event => {
-      event.preventDefault();
-      targetCameraDistance = Math.max(13, Math.min(maxCameraDistance(), targetCameraDistance + event.deltaY * 0.018));
-    }, { passive: false });
-
-    let lastTouchDistance = null;
-    canvas.addEventListener("touchmove", event => {
-      if (event.touches.length !== 2) return;
-      event.preventDefault();
-      const [a, b] = event.touches;
-      const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-      if (lastTouchDistance != null) {
-        targetCameraDistance = Math.max(13, Math.min(maxCameraDistance(), targetCameraDistance + (lastTouchDistance - distance) * 0.035));
+      svg.classList.remove("is-panning");
+      ignoreNextClick = true;
+      if (!wasDrag && clickNodeId) {
+        selectNode(clickNodeId, true);
+        setTimeout(() => {
+          ignoreNextClick = false;
+        }, 50);
+        return;
       }
-      lastTouchDistance = distance;
-    }, { passive: false });
-
-    canvas.addEventListener("touchend", () => {
-      lastTouchDistance = null;
+      setTimeout(() => {
+        ignoreNextClick = false;
+      }, 0);
     });
+
+    svg.addEventListener("pointercancel", () => {
+      isDragging = false;
+      pointerDownNodeId = null;
+      svg.classList.remove("is-panning");
+      ignoreNextClick = false;
+    });
+
+    svg.addEventListener("click", event => {
+      const target = event.target.closest?.("[data-node-id]");
+      if (!target || ignoreNextClick || dragMoved >= 18) return;
+      selectNode(target.getAttribute("data-node-id"), true);
+    });
+
+    svg.addEventListener("wheel", zoomAt, { passive: false });
 
     resetBtn.addEventListener("click", resetView);
     expandBtn.addEventListener("click", () => {
       nodesById.forEach((node, id) => {
         if (node.children?.length) expanded.add(id);
       });
-      rebuildMap();
+      view.userMoved = false;
+      rebuildMap({ fit: true });
     });
     collapseBtn.addEventListener("click", () => {
       expanded = new Set(["core"]);
       renderDetails("core");
-      rebuildMap();
-      resetView();
+      view.userMoved = false;
+      rebuildMap({ fit: true });
     });
     rotateBtn.addEventListener("click", () => {
-      autoRotate = !autoRotate;
-      rotateBtn.textContent = autoRotate ? "Pause Rotation" : "Resume Rotation";
-      rotateBtn.setAttribute("aria-pressed", String(!autoRotate));
+      autoDrift = !autoDrift;
+      rotateBtn.textContent = autoDrift ? "Pause Drift" : "Resume Drift";
+      rotateBtn.setAttribute("aria-pressed", String(!autoDrift));
     });
 
     function animate(time) {
-      if (autoRotate && !isDragging && !reducedMotion.matches) targetRotationY += 0.00012;
+      if (autoDrift && !view.userMoved && !isDragging && !reducedMotion.matches) {
+        view.targetTx = view.baseTx + Math.sin(time * 0.00022) * 12;
+        view.targetTy = view.baseTy + Math.cos(time * 0.00018) * 8;
+      }
 
-      sceneRotationX += (targetRotationX - sceneRotationX) * 0.1;
-      sceneRotationY += (targetRotationY - sceneRotationY) * 0.1;
-      cameraDistance += (targetCameraDistance - cameraDistance) * 0.08;
-      focusOffset.lerp(targetFocusOffset, 0.07);
+      view.scale += (view.targetScale - view.scale) * 0.16;
+      view.tx += (view.targetTx - view.tx) * 0.16;
+      view.ty += (view.targetTy - view.ty) * 0.16;
+      applyTransform();
 
-      camera.position.z = cameraDistance;
-      camera.position.y = isCompactView() ? 0.15 : 0.28;
-      camera.lookAt(0, 0, 0);
-      researchGroup.position.copy(focusOffset);
-      researchGroup.rotation.set(sceneRotationX, sceneRotationY, 0);
-
-      orbitalRecords.forEach(record => {
-        if (reducedMotion.matches) return;
-        record.object.rotation[record.axis] += record.speed * (time > 0 ? 16 : 1);
-      });
-
-      connectorRecords.forEach(record => {
-        const t = reducedMotion.matches ? record.phase % 1 : (time * record.speed + record.phase) % 1;
-        record.packet.position.copy(record.curve.getPointAt(t));
-      });
-
-      nodeRecords.forEach(record => {
-        const selected = record.node.id === selectedId;
-        const hovered = record.node.id === hoveredId;
-        const pathActive = selectedPath.has(record.node.id);
-        const breathing = selected && !reducedMotion.matches ? 1 + Math.sin(time * 0.0017) * 0.018 : 1;
-        const targetScale = breathing * (selected ? 1.13 : hovered ? 1.07 : pathActive ? 1.03 : 1);
-        tmpScale.setScalar(targetScale);
-        record.group.scale.lerp(tmpScale, 0.12);
-
-        record.materials.forEach(material => {
-          if (typeof material.emissiveIntensity !== "number") return;
-          const base = selected ? 0.18 : hovered ? 0.12 : pathActive ? 0.08 : 0.035;
-          material.emissiveIntensity += (base - material.emissiveIntensity) * 0.08;
-        });
-
-        record.spinObjects.forEach(spin => {
-          if (!reducedMotion.matches) spin.object.rotation[spin.axis] += spin.speed * 16;
+      connectionRecords.forEach(record => {
+        if (!record.length) return;
+        record.packets.forEach((packet, index) => {
+          const phase = (record.phase + index / Math.max(1, record.packets.length)) % 1;
+          const t = reducedMotion.matches ? phase : (phase + time * record.speed) % 1;
+          const point = record.path.getPointAtLength(record.length * t);
+          const size = Number(packet.getAttribute("width")) || 6;
+          packet.setAttribute("x", point.x - size / 2);
+          packet.setAttribute("y", point.y - size / 2);
         });
       });
 
-      labelRecords.forEach(record => {
-        const selected = record.nodeId === selectedId;
-        const hovered = record.nodeId === hoveredId;
-        const pathActive = selectedPath.has(record.nodeId);
-        const targetOpacity = selected || hovered ? 0.98 : pathActive ? Math.max(record.baseOpacity, 0.82) : record.baseOpacity;
-        record.sprite.material.opacity += (targetOpacity - record.sprite.material.opacity) * 0.12;
-      });
-
-      inverseResearchQuaternion.copy(researchGroup.quaternion).invert();
-      billboardQuaternion.copy(inverseResearchQuaternion).multiply(camera.quaternion);
-
-      previewRecords.forEach(record => {
-        const selected = record.nodeId === selectedId;
-        const hovered = record.nodeId === hoveredId;
-        const pathActive = selectedPath.has(record.nodeId);
-        const targetOpacity = selected ? 0.94 : hovered ? 0.78 : pathActive ? 0.68 : 0.56;
-        record.plane.material.opacity += (targetOpacity - record.plane.material.opacity) * 0.1;
-        record.glow.material.opacity += ((selected ? 0.34 : hovered ? 0.20 : 0.11) - record.glow.material.opacity) * 0.1;
-        record.edge.material.opacity += ((selected ? 0.56 : hovered ? 0.34 : 0.16) - record.edge.material.opacity) * 0.1;
-        record.caption.material.opacity += ((selected ? 0.86 : 0) - record.caption.material.opacity) * 0.12;
-        tmpScale.setScalar(selected ? 1.08 : hovered ? 1.04 : 1);
-        record.group.scale.lerp(tmpScale, 0.12);
-        record.group.quaternion.copy(billboardQuaternion);
-        record.group.rotateY(record.side * 0.06);
-      });
-
-      renderer.render(scene, camera);
       requestAnimationFrame(animate);
     }
 
-    new ResizeObserver(resizeRenderer).observe(canvasWrap);
-    resizeRenderer();
+    new ResizeObserver(() => resizeMap()).observe(canvasWrap);
+    resizeMap(true);
     renderDetails("core");
-    rebuildMap();
+    rebuildMap({ fit: true, immediate: true });
     if (loading) loading.classList.add("hidden");
     requestAnimationFrame(animate);
   } catch (error) {
     console.error(error);
     if (loading) {
       loading.classList.remove("hidden");
-      loading.innerHTML = `<strong>Map failed to load.</strong><br><span>${String(error.message || error)}</span><br><small>Check WebGL support and confirm the Three.js CDN can load over HTTPS.</small>`;
+      loading.innerHTML = `<strong>Map failed to load.</strong><br><span>${String(error.message || error)}</span><br><small>Check that <code>js/research-data.js</code> loaded and that the browser supports SVG.</small>`;
     }
   }
 })();

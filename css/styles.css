@@ -170,6 +170,138 @@ a:focus-visible {
   height: 100%;
   touch-action: none;
   cursor: grab;
+  user-select: none;
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+}
+
+#mapCanvas.is-panning {
+  cursor: grabbing;
+}
+
+.map-world {
+  transform-origin: 0 0;
+}
+
+.atlas-domain {
+  opacity: .9;
+}
+
+.atlas-orbit {
+  fill: none;
+  stroke: rgba(28, 29, 27, .16);
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.atlas-orbit.is-wide {
+  stroke: rgba(28, 29, 27, .10);
+}
+
+.diagram-link {
+  fill: none;
+  stroke-width: 1.45;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: .78;
+  vector-effect: non-scaling-stroke;
+}
+
+.diagram-link.is-active {
+  stroke-width: 2.15;
+  opacity: .9;
+}
+
+.data-packet {
+  opacity: .5;
+  pointer-events: none;
+}
+
+.data-packet.is-active {
+  opacity: .82;
+}
+
+.map-node {
+  cursor: pointer;
+  transition: opacity .18s ease;
+}
+
+.map-node.is-hovered,
+.map-node.is-selected {
+  opacity: 1;
+}
+
+.node-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.node-shadow {
+  fill: rgba(28, 29, 27, .08);
+}
+
+.node-body {
+  opacity: .94;
+}
+
+.node-outline {
+  fill: none;
+  stroke-width: 1.4;
+  opacity: .72;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-node.is-selected .node-outline {
+  stroke-width: 2.2;
+  opacity: .95;
+}
+
+.node-center {
+  opacity: .62;
+}
+
+.node-marker {
+  opacity: .45;
+}
+
+.branch-badge circle {
+  stroke-width: 1.15;
+  vector-effect: non-scaling-stroke;
+}
+
+.branch-badge path {
+  vector-effect: non-scaling-stroke;
+}
+
+.node-label-bg {
+  fill: rgba(255, 255, 255, .78);
+  stroke-width: .9;
+  vector-effect: non-scaling-stroke;
+}
+
+.node-label {
+  fill: #1c1d1b;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.preview-card {
+  cursor: pointer;
+  opacity: .54;
+  transition: opacity .18s ease;
+}
+
+.preview-card.is-path,
+.preview-card:hover {
+  opacity: .9;
+}
+
+.preview-card rect {
+  stroke-opacity: .38;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
 .scene-note {
@@ -229,18 +361,17 @@ a:focus-visible {
   height: 7px;
   border-radius: 50%;
   display: inline-block;
-  box-shadow: 0 0 14px currentColor;
+  box-shadow: 0 0 0 3px rgba(217, 217, 213, .55);
 }
 
 .dot.composites {
   background: var(--blue);
-  border: 1px solid rgba(253, 196, 31, .72);
-  color: var(--pink);
+  border: 1px solid rgba(14, 69, 92, .34);
 }
 
 .dot.battery {
   background: var(--pink);
-  color: var(--pink);
+  border: 1px solid rgba(142, 76, 76, .34);
 }
 
 .details-panel {
