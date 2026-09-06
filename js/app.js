@@ -606,7 +606,7 @@
 
     function fitToItems(items, immediate = false) {
       if (!items.length) return;
-      const padding = Math.max(58, Math.min(view.width, view.height) * 0.14);
+      const padding = Math.max(96, Math.min(view.width, view.height) * 0.18);
       let minX = Infinity;
       let minY = Infinity;
       let maxX = -Infinity;
