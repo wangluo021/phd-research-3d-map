@@ -34,46 +34,46 @@
 
     const PALETTE = {
       core: {
-        surface: 0xfff5cf,
-        deep: 0x9b7816,
-        accent: 0xfdc41f,
-        edge: 0xfff9e6,
-        line: 0x72d6d2,
+        surface: 0xd7c777,
+        deep: 0x756b38,
+        accent: 0x1c1d1b,
+        edge: 0x1c1d1b,
+        line: 0xa6a7a2,
       },
       composites: {
-        surface: 0x0e455c,
-        deep: 0x082e40,
-        accent: 0xfdc41f,
-        edge: 0xffe18b,
-        line: 0x72d6d2,
+        surface: 0x72b9bd,
+        deep: 0x0e455c,
+        accent: 0x0e455c,
+        edge: 0x1c1d1b,
+        line: 0xb7bebd,
       },
       battery: {
-        surface: 0xfdc41f,
-        deep: 0x8a6410,
-        accent: 0x0e455c,
-        edge: 0xfff2ba,
-        line: 0xffd95e,
+        surface: 0xd98282,
+        deep: 0x8e4c4c,
+        accent: 0x8e4c4c,
+        edge: 0x1c1d1b,
+        line: 0xb7bebd,
       },
       molecular: {
-        surface: 0x123f54,
-        deep: 0x082b3c,
-        accent: 0xfdc41f,
-        edge: 0xfff0b0,
-        line: 0x72d6d2,
+        surface: 0xd7c777,
+        deep: 0x766b34,
+        accent: 0x766b34,
+        edge: 0x1c1d1b,
+        line: 0xb7bebd,
       },
       validation: {
-        surface: 0x5a551d,
-        deep: 0x2b3f3f,
-        accent: 0xfdc41f,
-        edge: 0xfff6d4,
-        line: 0x72d6d2,
+        surface: 0xd98282,
+        deep: 0x8e4c4c,
+        accent: 0x8e4c4c,
+        edge: 0x1c1d1b,
+        line: 0xb7bebd,
       },
       outputs: {
-        surface: 0x174a5f,
-        deep: 0x082f42,
-        accent: 0xfdc41f,
-        edge: 0xfff4cc,
-        line: 0xffd95e,
+        surface: 0xd7c777,
+        deep: 0x756b38,
+        accent: 0x756b38,
+        edge: 0x1c1d1b,
+        line: 0xb7bebd,
       },
     };
 
@@ -101,8 +101,8 @@
     let dragMoved = 0;
     let lastX = 0;
     let lastY = 0;
-    let sceneRotationX = -0.14;
-    let sceneRotationY = 0.18;
+    let sceneRotationX = 0;
+    let sceneRotationY = 0;
     let targetRotationX = sceneRotationX;
     let targetRotationY = sceneRotationY;
     let cameraDistance = defaultCameraDistance();
@@ -132,10 +132,10 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0e455c, 0.010);
+    scene.fog = new THREE.FogExp2(0xf7f5ef, 0.006);
 
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 420);
-    camera.position.set(0, 3.8, cameraDistance);
+    camera.position.set(0, 0.2, cameraDistance);
     camera.lookAt(0, 0, 0);
 
     buildLighting();
@@ -286,27 +286,27 @@
     }
 
     function buildLighting() {
-      scene.add(new THREE.HemisphereLight(0xfff1bd, 0x0e455c, 1.85));
+      scene.add(new THREE.HemisphereLight(0xffffff, 0xd9d8d2, 1.55));
 
-      const key = new THREE.DirectionalLight(0xfff6d6, 3.45);
+      const key = new THREE.DirectionalLight(0xffffff, 2.15);
       key.position.set(-8, 12, 10);
       key.castShadow = true;
       key.shadow.mapSize.set(1024, 1024);
       scene.add(key);
 
-      const topFill = new THREE.DirectionalLight(0xfdc41f, 1.25);
+      const topFill = new THREE.DirectionalLight(0xf7f5ef, 0.75);
       topFill.position.set(0, 13, -4);
       scene.add(topFill);
 
-      const warmRim = new THREE.PointLight(0xfdc41f, 9.2, 58);
+      const warmRim = new THREE.PointLight(0xd7c777, 2.8, 58);
       warmRim.position.set(12, 4, -12);
       scene.add(warmRim);
 
-      const coolRim = new THREE.PointLight(0x72d6d2, 7.2, 62);
+      const coolRim = new THREE.PointLight(0x72b9bd, 2.6, 62);
       coolRim.position.set(-14, 3, 9);
       scene.add(coolRim);
 
-      const blueFill = new THREE.PointLight(0x0e455c, 5.8, 46);
+      const blueFill = new THREE.PointLight(0xffffff, 1.4, 46);
       blueFill.position.set(9, -4, 8);
       scene.add(blueFill);
     }
@@ -314,16 +314,16 @@
     function buildAtmosphere() {
       const hazeGeo = new THREE.SphereGeometry(58, 64, 32);
       const hazeMat = new THREE.MeshBasicMaterial({
-        color: 0x0e455c,
+        color: 0xf7f5ef,
         transparent: true,
-        opacity: 0.075,
+        opacity: 0.18,
         side: THREE.BackSide,
         depthWrite: false,
       });
       const haze = new THREE.Mesh(hazeGeo, hazeMat);
       scene.add(haze);
 
-      const ringMat = lineMaterial(0xfdc41f, 0.18);
+      const ringMat = lineMaterial(0x1c1d1b, 0.08);
       [9, 16, 25, 36].forEach((radius, i) => {
         const curve = new THREE.EllipseCurve(0, 0, radius, radius * (0.72 + i * 0.025), 0, Math.PI * 2);
         const points = curve.getPoints(180).map(point => new THREE.Vector3(point.x, -4.8 + i * 0.07, point.y));
@@ -337,9 +337,9 @@
       const particleCount = isCompactView() ? 520 : 900;
       const positions = new Float32Array(particleCount * 3);
       const colors = new Float32Array(particleCount * 3);
-      const colorA = new THREE.Color(0xfdc41f);
-      const colorB = new THREE.Color(0xfff1bd);
-      const colorC = new THREE.Color(0x72d6d2);
+      const colorA = new THREE.Color(0xa8aaa5);
+      const colorB = new THREE.Color(0xd7c777);
+      const colorC = new THREE.Color(0x72b9bd);
 
       for (let i = 0; i < particleCount; i++) {
         const radius = 8 + Math.random() * 48;
@@ -362,7 +362,7 @@
         size: 0.062,
         vertexColors: true,
         transparent: true,
-        opacity: 0.46,
+        opacity: 0.22,
         sizeAttenuation: true,
         depthWrite: false,
       });
@@ -427,21 +427,25 @@
       const y = (height - boxH) / 2;
       const accent = hexToCss(colorHex);
       const grad = ctx.createLinearGradient(x, y, x + boxW, y + boxH);
-      grad.addColorStop(0, "rgba(5,12,18,0.54)");
-      grad.addColorStop(1, "rgba(14,25,35,0.18)");
+      grad.addColorStop(0, "rgba(255,255,255,0.86)");
+      grad.addColorStop(1, "rgba(246,244,238,0.50)");
       drawRoundRect(ctx, x, y, boxW, boxH, 58);
       ctx.fillStyle = grad;
       ctx.fill();
-      ctx.strokeStyle = `${accent}66`;
+      ctx.strokeStyle = depth <= 1 ? `${accent}70` : "rgba(28,29,27,0.18)";
       ctx.lineWidth = 4;
       ctx.stroke();
 
+      ctx.fillStyle = `${accent}9a`;
+      drawRoundRect(ctx, x + 70, y + boxH * 0.5 - 44, 16, 88, 8);
+      ctx.fill();
+
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.shadowColor = `${accent}aa`;
-      ctx.shadowBlur = depth <= 1 ? 28 : 18;
-      ctx.fillStyle = "#eef4ff";
-      ctx.font = `${depth <= 1 ? 500 : 500} ${depth <= 1 ? 112 : 92}px Inter, Arial, sans-serif`;
+      ctx.shadowColor = "rgba(255,255,255,0.72)";
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = "#1c1d1b";
+      ctx.font = `${depth <= 1 ? 620 : 560} ${depth <= 1 ? 112 : 92}px Inter, Arial, sans-serif`;
       const lineHeight = depth <= 1 ? 132 : 112;
       const startY = height / 2 - ((lines.length - 1) * lineHeight) / 2;
       lines.forEach((line, index) => ctx.fillText(line, width / 2, startY + index * lineHeight));
@@ -462,20 +466,20 @@
       const label = text.length > 58 ? `${text.slice(0, 55)}...` : text;
       const accent = hexToCss(colorHex);
       const grad = ctx.createLinearGradient(0, 0, c.width, c.height);
-      grad.addColorStop(0, "rgba(5,12,17,0.72)");
-      grad.addColorStop(1, "rgba(5,12,17,0.20)");
+      grad.addColorStop(0, "rgba(255,255,255,0.90)");
+      grad.addColorStop(1, "rgba(246,244,238,0.56)");
       drawRoundRect(ctx, 24, 34, c.width - 48, c.height - 68, 34);
       ctx.fillStyle = grad;
       ctx.fill();
-      ctx.strokeStyle = `${accent}44`;
+      ctx.strokeStyle = `${accent}55`;
       ctx.lineWidth = 3;
       ctx.stroke();
-      ctx.fillStyle = "#eef4ff";
+      ctx.fillStyle = "#1c1d1b";
       ctx.font = "500 58px Inter, Arial, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.shadowColor = accent;
-      ctx.shadowBlur = 16;
+      ctx.shadowColor = "rgba(255,255,255,0.72)";
+      ctx.shadowBlur = 8;
       ctx.fillText(label, c.width / 2, c.height / 2);
 
       const texture = new THREE.CanvasTexture(c);
@@ -494,29 +498,33 @@
       const accent = hexToCss(p.accent);
       const edge = hexToCss(p.edge);
       const bg = ctx.createLinearGradient(0, 0, c.width, c.height);
-      bg.addColorStop(0, "#101923");
-      bg.addColorStop(0.5, "#071018");
-      bg.addColorStop(1, "#11100d");
+      bg.addColorStop(0, "#ffffff");
+      bg.addColorStop(0.55, "#f7f5ef");
+      bg.addColorStop(1, "#ece9df");
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, c.width, c.height);
 
-      ctx.globalAlpha = 0.2;
-      ctx.strokeStyle = accent;
-      ctx.lineWidth = 2;
-      for (let x = 0; x < c.width; x += 86) {
+      ctx.globalAlpha = 0.28;
+      ctx.strokeStyle = "rgba(28,29,27,0.18)";
+      ctx.lineWidth = 1.5;
+      for (let x = 0; x < c.width; x += 92) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x + 120, c.height);
+        ctx.lineTo(x, c.height);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
 
-      ctx.strokeStyle = `${edge}dd`;
-      ctx.lineWidth = 9;
+      ctx.fillStyle = "rgba(217,217,213,0.62)";
+      ctx.beginPath();
+      ctx.ellipse(700, 390, 360, 220, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = `${edge}70`;
+      ctx.lineWidth = 8;
       ctx.beginPath();
       ctx.ellipse(700, 390, 220, 145, -0.2, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.strokeStyle = `${accent}bb`;
+      ctx.strokeStyle = `${accent}aa`;
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.ellipse(700, 390, 340, 50, 0.24, 0, Math.PI * 2);
@@ -526,7 +534,7 @@
       ctx.arc(700, 390, 52, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = "#edf7fb";
+      ctx.fillStyle = "#1c1d1b";
       ctx.font = "500 66px Inter, Arial, sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(node.name.slice(0, 36), 700, 730);
@@ -601,9 +609,9 @@
 
         if (item.depth === 1) {
           const side = themeSide.get(item.node.id) || 1;
-          const x = side * (compact ? 4.6 : tablet ? 5.9 : 7.2);
-          const y = side < 0 ? (compact ? 1.4 : 1.7) : (compact ? -0.55 : -0.85);
-          const z = side * (compact ? -0.35 : -0.9);
+          const x = side * (compact ? 4.35 : tablet ? 5.75 : 6.95);
+          const y = side < 0 ? (compact ? 1.36 : 1.62) : (compact ? -0.52 : -0.78);
+          const z = side * (compact ? -0.08 : -0.18);
           item.pos.set(x, y, z);
           return;
         }
@@ -618,23 +626,23 @@
         const angle = normalized * (compact ? 1.02 : 1.28);
 
         if (item.depth === 2) {
-          const outward = compact ? 2.7 : tablet ? 3.8 : 4.8;
-          const vertical = compact ? 2.55 : 3.35;
-          const depth = compact ? 2.25 : 3.55;
+          const outward = compact ? 2.55 : tablet ? 3.55 : 4.45;
+          const vertical = compact ? 2.48 : 3.18;
+          const depth = compact ? 0.58 : 0.82;
           item.pos.set(
             parent.pos.x + side * outward,
             parent.pos.y - Math.sin(angle) * vertical,
-            parent.pos.z + Math.cos(angle) * depth + (idx % 2 ? 0.9 : -0.9)
+            parent.pos.z + Math.cos(angle) * depth + (idx % 2 ? 0.16 : -0.16)
           );
           return;
         }
 
         const localIndex = idx - center;
-        const outward = compact ? 1.75 + (item.depth - 3) * 1.0 : 2.55 + (item.depth - 3) * 1.42;
+        const outward = compact ? 1.72 + (item.depth - 3) * 0.94 : 2.44 + (item.depth - 3) * 1.26;
         item.pos.set(
           parent.pos.x + side * outward,
-          parent.pos.y - localIndex * (compact ? 1.25 : 1.7),
-          parent.pos.z + localIndex * (compact ? 1.05 : 1.55) - side * 0.75
+          parent.pos.y - localIndex * (compact ? 1.22 : 1.62),
+          parent.pos.z + localIndex * (compact ? 0.22 : 0.34) - side * 0.14
         );
       });
     }
@@ -676,6 +684,74 @@
       mesh.position.copy(from).add(to).multiplyScalar(0.5);
       mesh.quaternion.setFromUnitVectors(yAxis, direction.normalize());
       return mesh;
+    }
+
+    function flatMaterial(color, opacity = 1) {
+      return new THREE.MeshBasicMaterial({
+        color,
+        transparent: opacity < 1,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: opacity > 0.48,
+        toneMapped: false,
+      });
+    }
+
+    function addFlatCircle(group, radius, color, opacity, z = 0) {
+      const mesh = new THREE.Mesh(
+        new THREE.CircleGeometry(radius, 96),
+        flatMaterial(color, opacity)
+      );
+      mesh.position.z = z;
+      group.add(mesh);
+      return mesh;
+    }
+
+    function addEllipseLine(group, radiusX, radiusY, color, opacity, z = 0.03, start = 0, end = Math.PI * 2) {
+      const curve = new THREE.EllipseCurve(0, 0, radiusX, radiusY, start, end);
+      const points = curve.getPoints(160).map(point => new THREE.Vector3(point.x, point.y, z));
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      const line = Math.abs(end - start) >= Math.PI * 2
+        ? new THREE.LineLoop(geo, lineMaterial(color, opacity))
+        : new THREE.Line(geo, lineMaterial(color, opacity));
+      group.add(line);
+      return line;
+    }
+
+    function addDiagramNodeVisual(record) {
+      const { group, node, depth, radius } = record;
+      const p = paletteFor(node);
+      const domainRadius = radius * (depth === 0 ? 3.35 : depth === 1 ? 3.0 : depth === 2 ? 2.1 : 1.7);
+      const domainOpacity = depth === 0 ? 0.18 : depth === 1 ? 0.28 : depth === 2 ? 0.14 : 0.1;
+      const bodyRadius = radius * (depth === 0 ? 0.92 : depth === 1 ? 1.02 : depth === 2 ? 0.9 : 0.82);
+      const bodyOpacity = depth <= 1 ? 0.92 : 0.86;
+      const ringOpacity = depth <= 1 ? 0.44 : 0.28;
+
+      const domain = addFlatCircle(group, domainRadius, 0xd9d9d5, domainOpacity, -0.08);
+      domain.scale.set(1.18, depth === 0 ? 1.02 : 0.88, 1);
+
+      const castShadow = addFlatCircle(group, bodyRadius * 1.06, 0x1c1d1b, depth <= 1 ? 0.09 : 0.055, -0.02);
+      castShadow.position.x = radius * 0.08;
+      castShadow.position.y = -radius * 0.08;
+
+      addFlatCircle(group, bodyRadius, p.surface, bodyOpacity, 0.02);
+      addFlatCircle(group, bodyRadius * 0.32, depth === 0 ? 0xfffaf0 : p.deep, depth === 0 ? 0.78 : 0.22, 0.045);
+
+      addEllipseLine(group, bodyRadius * 1.02, bodyRadius * 1.02, p.edge, ringOpacity, 0.06);
+      addEllipseLine(group, domainRadius * 0.76, domainRadius * 0.54, 0x1c1d1b, depth <= 1 ? 0.18 : 0.08, -0.04, -Math.PI * 0.1, Math.PI * 1.13);
+      addEllipseLine(group, domainRadius * 0.46, domainRadius * 0.34, p.line, depth <= 1 ? 0.22 : 0.12, -0.035, Math.PI * 0.28, Math.PI * 1.65);
+
+      if (depth <= 1) {
+        const markers = [
+          [-0.38, 0.32, 0.09],
+          [0.34, 0.2, 0.07],
+          [0.12, -0.36, 0.055],
+        ];
+        markers.forEach(([x, y, size], index) => {
+          addFlatCircle(group, radius * size, index === 1 ? p.edge : p.deep, 0.72, 0.08)
+            .position.set(x * radius, y * radius, 0.08);
+        });
+      }
     }
 
     function addCoreVisual(record) {
@@ -1031,32 +1107,7 @@
     }
 
     function addNodeVisual(record) {
-      switch (record.archetype) {
-        case "core":
-          addCoreVisual(record);
-          break;
-        case "theme-composite":
-          addCompositeThemeVisual(record);
-          break;
-        case "theme-battery":
-          addBatteryThemeVisual(record);
-          break;
-        case "molecular":
-          addMolecularVisual(record);
-          break;
-        case "experimental":
-          addExperimentalVisual(record);
-          break;
-        case "process":
-          addProcessVisual(record);
-          break;
-        case "output":
-          addOutputVisual(record);
-          break;
-        case "simulation":
-        default:
-          addSimulationVisual(record);
-      }
+      addDiagramNodeVisual(record);
     }
 
     function addHitArea(record) {
@@ -1107,14 +1158,14 @@
       const src = node.preview || (node.images && node.images[0] && node.images[0].src);
       const p = paletteFor(node);
       const compact = isCompactView();
-      const maxWidth = compact ? (item.depth === 1 ? 2.35 : 1.72) : (item.depth === 1 ? 3.65 : 2.78);
+      const maxWidth = compact ? (item.depth === 1 ? 2.2 : 1.58) : (item.depth === 1 ? 3.2 : 2.36);
       const maxHeight = maxWidth * 0.64;
       const side = item.depth >= 2
         ? (item.pos.x < 0 ? 1 : -1)
         : (item.pos.x < 0 ? -1 : 1);
 
       const display = new THREE.Group();
-      display.position.set(side * (radius + (compact ? 1.18 : 2.05)), -0.03, item.depth === 1 ? 0.14 : 0.06);
+      display.position.set(side * (radius + (compact ? 1.08 : 1.72)), -0.03, item.depth === 1 ? 0.10 : 0.05);
       display.userData.nodeId = node.id;
       group.add(display);
 
@@ -1123,7 +1174,7 @@
         new THREE.MeshBasicMaterial({
           map: makeFallbackPreviewTexture(node),
           transparent: true,
-          opacity: node.id === selectedId ? 0.96 : 0.68,
+          opacity: node.id === selectedId ? 0.92 : 0.56,
           side: THREE.DoubleSide,
           toneMapped: false,
         })
@@ -1132,14 +1183,21 @@
 
       const glow = new THREE.Mesh(
         new THREE.PlaneGeometry(1, 1),
-        additiveMaterial(p.accent, node.id === selectedId ? 0.2 : 0.035)
+        new THREE.MeshBasicMaterial({
+          color: 0xd9d9d5,
+          transparent: true,
+          opacity: node.id === selectedId ? 0.34 : 0.11,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          toneMapped: false,
+        })
       );
       glow.position.z = -0.035;
       display.add(glow);
 
       const edge = new THREE.LineSegments(
         new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, 1)),
-        lineMaterial(p.edge, node.id === selectedId ? 0.48 : 0.1)
+        lineMaterial(p.edge, node.id === selectedId ? 0.56 : 0.16)
       );
       edge.position.z = 0.018;
       display.add(edge);
@@ -1182,42 +1240,45 @@
       const child = childItem.node;
       const active = selectedPath.has(parent.id) && selectedPath.has(child.id);
       const childPalette = paletteFor(child);
-      const color = active ? childPalette.edge : childPalette.line;
+      const color = active ? 0x1c1d1b : childPalette.line;
       const from = parentItem.pos.clone();
       const to = childItem.pos.clone();
       const distance = from.distanceTo(to);
       const mid = from.clone().lerp(to, 0.5);
-      mid.y += 0.42 + distance * 0.045;
-      mid.z += (childItem.pos.x < 0 ? -1 : 1) * 0.42;
+      mid.y += 0.24 + distance * 0.04;
+      mid.z += (childItem.pos.x < 0 ? -1 : 1) * 0.12;
       const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
 
-      const radius = active ? 0.036 : 0.023;
+      const radius = active ? 0.018 : 0.009;
       const tube = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 58, radius, 8, false),
-        new THREE.MeshPhysicalMaterial({
+        new THREE.TubeGeometry(curve, 72, radius, 6, false),
+        new THREE.MeshBasicMaterial({
           color,
-          emissive: color,
-          emissiveIntensity: active ? 0.72 : 0.22,
-          metalness: 0.05,
-          roughness: 0.38,
           transparent: true,
-          opacity: active ? 0.72 : 0.28,
+          opacity: active ? 0.78 : 0.36,
           depthWrite: false,
+          toneMapped: false,
         })
       );
       researchGroup.add(tube);
 
       const glow = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 58, radius * 2.8, 8, false),
-        additiveMaterial(color, active ? 0.1 : 0.045)
+        new THREE.TubeGeometry(curve, 72, radius * 4.2, 6, false),
+        new THREE.MeshBasicMaterial({
+          color: 0xd9d9d5,
+          transparent: true,
+          opacity: active ? 0.24 : 0.10,
+          depthWrite: false,
+          toneMapped: false,
+        })
       );
       researchGroup.add(glow);
 
       const pulseCount = active ? 3 : 1;
       for (let i = 0; i < pulseCount; i++) {
         const packet = new THREE.Mesh(
-          new THREE.BoxGeometry(active ? 0.13 : 0.09, active ? 0.13 : 0.09, active ? 0.13 : 0.09),
-          additiveMaterial(active ? 0xffffff : childPalette.edge, active ? 0.9 : 0.58)
+          new THREE.BoxGeometry(active ? 0.14 : 0.09, active ? 0.14 : 0.09, 0.018),
+          flatMaterial(active ? 0x1c1d1b : childPalette.edge, active ? 0.82 : 0.52)
         );
         researchGroup.add(packet);
         connectorRecords.push({
@@ -1405,8 +1466,8 @@
     }
 
     function resetView() {
-      targetRotationX = -0.14;
-      targetRotationY = 0.18;
+      targetRotationX = 0;
+      targetRotationY = 0;
       targetCameraDistance = defaultCameraDistance();
       targetFocusOffset.set(0, 0, 0);
     }
@@ -1490,7 +1551,7 @@
     });
 
     function animate(time) {
-      if (autoRotate && !isDragging && !reducedMotion.matches) targetRotationY += 0.00042;
+      if (autoRotate && !isDragging && !reducedMotion.matches) targetRotationY += 0.00012;
 
       sceneRotationX += (targetRotationX - sceneRotationX) * 0.1;
       sceneRotationY += (targetRotationY - sceneRotationY) * 0.1;
@@ -1498,7 +1559,7 @@
       focusOffset.lerp(targetFocusOffset, 0.07);
 
       camera.position.z = cameraDistance;
-      camera.position.y = isCompactView() ? 2.2 : 3.75;
+      camera.position.y = isCompactView() ? 0.15 : 0.28;
       camera.lookAt(0, 0, 0);
       researchGroup.position.copy(focusOffset);
       researchGroup.rotation.set(sceneRotationX, sceneRotationY, 0);
@@ -1523,6 +1584,7 @@
         record.group.scale.lerp(tmpScale, 0.12);
 
         record.materials.forEach(material => {
+          if (typeof material.emissiveIntensity !== "number") return;
           const base = selected ? 0.18 : hovered ? 0.12 : pathActive ? 0.08 : 0.035;
           material.emissiveIntensity += (base - material.emissiveIntensity) * 0.08;
         });
@@ -1547,10 +1609,10 @@
         const selected = record.nodeId === selectedId;
         const hovered = record.nodeId === hoveredId;
         const pathActive = selectedPath.has(record.nodeId);
-        const targetOpacity = selected ? 0.98 : hovered ? 0.84 : pathActive ? 0.74 : 0.62;
+        const targetOpacity = selected ? 0.94 : hovered ? 0.78 : pathActive ? 0.68 : 0.56;
         record.plane.material.opacity += (targetOpacity - record.plane.material.opacity) * 0.1;
-        record.glow.material.opacity += ((selected ? 0.2 : hovered ? 0.12 : 0.035) - record.glow.material.opacity) * 0.1;
-        record.edge.material.opacity += ((selected ? 0.52 : hovered ? 0.28 : 0.1) - record.edge.material.opacity) * 0.1;
+        record.glow.material.opacity += ((selected ? 0.34 : hovered ? 0.20 : 0.11) - record.glow.material.opacity) * 0.1;
+        record.edge.material.opacity += ((selected ? 0.56 : hovered ? 0.34 : 0.16) - record.edge.material.opacity) * 0.1;
         record.caption.material.opacity += ((selected ? 0.86 : 0) - record.caption.material.opacity) * 0.12;
         tmpScale.setScalar(selected ? 1.08 : hovered ? 1.04 : 1);
         record.group.scale.lerp(tmpScale, 0.12);
