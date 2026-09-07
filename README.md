@@ -1,6 +1,6 @@
-# PhD Research Concept Atlas
+# PhD Research Atlas
 
-Interactive 2D SVG research mind map for a PhD portfolio organized into two core research themes:
+Interactive Three.js PhD research portfolio organized around two connected research themes:
 
 1. **Theme I — Composite Manufacturing & Multiscale Modeling**
 2. **Theme II — Battery Manufacturing & Multiscale Modeling**
@@ -11,31 +11,104 @@ Live GitHub Pages site:
 https://wangluo021.github.io/phd-research-3d-map/
 ```
 
-## Screenshot
+## Preview
 
-![Screenshot placeholder](assets/images/core-workflow.svg)
+![Research framework preview](assets/images/core-workflow.svg)
 
-Replace this placeholder with a deployed-site screenshot when you want the README to show the actual rendered interface.
+The deployed site renders the full interactive 3D atlas with spherical research nodes, curved branch paths, floating visual panels, and a right-side research detail gallery.
 
-## Project overview
+## Project Overview
 
-This is a static, GitHub Pages-compatible PhD research portfolio. It presents the dissertation structure as a flat academic concept atlas with a paper-like background, translucent research domains, colored circular nodes, curved relationship lines, small moving data packets, and image previews attached to selected research areas.
+This is a static Three.js website for presenting dissertation research as an interactive scientific knowledge field. The content is stored in `js/research-data.js`; the visual and interaction system is implemented in `js/app.js`; supporting images live in `assets/images/`.
 
 The map supports:
 
-- click-to-expand and click-to-collapse research branches
-- click-to-select nodes and update the right-side details panel
-- drag-to-pan the 2D atlas
-- mouse wheel / trackpad zoom
-- optional gentle auto drift
-- node image previews
-- a right-side image gallery for each selected node
-- related models, experiments, publications, and next steps
-- static GitHub Pages deployment from the repository root
+- drag-to-rotate 3D navigation
+- mouse wheel / trackpad / pinch zoom
+- click-to-expand and click-to-collapse branches
+- clickable research nodes
+- node-linked image previews
+- right-side image gallery updates
+- models, methods, papers, and next steps for each selected node
+- GitHub Pages deployment from the repository root
 
-The research content lives in `js/research-data.js`. The 2D SVG interaction and layout code lives in `js/app.js`. Visual assets live in `assets/images/`.
+The visual direction combines premium scientific visualization, soft pink-blue material lighting, subtle pixel-inspired details, sharp generated labels, glowing curved connections, restrained data-packet motion, and frosted polymer / pearlescent node materials.
 
-## Project structure
+## Run Locally
+
+This is a static site. On GitHub Pages, Three.js loads from jsDelivr over HTTPS first and falls back to `vendor/three.module.min.js` if the CDN cannot be reached.
+
+For the most reliable local test, run a local server:
+
+```bash
+cd phd-research-3d-map
+python -m http.server 8000
+```
+
+Then open:
+
+```text
+http://localhost:8000
+```
+
+The app also shows a readable error message if Three.js or WebGL initialization fails, instead of staying on `Loading 3D map...`.
+
+## Replace Node Images
+
+Put new visual assets in:
+
+```text
+assets/images/
+```
+
+Use relative paths from the project root:
+
+```text
+assets/images/my-abaqus-result.png
+assets/images/my-sem-image.jpg
+assets/images/my-ovito-interface.png
+```
+
+Then edit the relevant node in `js/research-data.js`:
+
+```js
+{
+  id: "pp-carbon",
+  name: "PP / Carbon Fiber Interface",
+  category: "composites",
+  preview: "assets/images/my-ovito-interface.png",
+  images: [
+    {
+      src: "assets/images/my-ovito-interface.png",
+      caption: "LAMMPS / OVITO PP-carbon interface"
+    }
+  ],
+  models: ["PP molecular slab", "Graphitic carbon surface"],
+  papers: [],
+  next: ["Run separation simulations"]
+}
+```
+
+## Edit Research Data
+
+Most content updates only require editing `js/research-data.js`.
+
+Main fields:
+
+- `id`: stable node identifier
+- `name`: node label
+- `category`: visual theme category
+- `description`: text shown in the side panel
+- `preview`: small image plane shown beside the 3D node
+- `images`: gallery images shown when the node is selected
+- `models`: models, methods, or experiments associated with the node
+- `papers`: paper titles, metadata, and DOI links
+- `next`: current or future work items
+- `children`: child branches in the mind map hierarchy
+
+Keep image references relative, such as `assets/images/example.svg`. Do not use local filesystem paths, `file://` URLs, or localhost-only asset URLs.
+
+## Project Structure
 
 ```text
 .
@@ -51,13 +124,16 @@ The research content lives in `js/research-data.js`. The 2D SVG interaction and 
 │       ├── pultrusion.svg
 │       ├── cathode-microstructure.svg
 │       └── ...
+├── vendor/
+│   ├── three.core.min.js
+│   └── three.module.min.js
 ├── .nojekyll
 └── README.md
 ```
 
 `index.html` must stay at the repository root for GitHub Pages branch deployment from `/ (root)`.
 
-## Current research structure
+## Current Research Structure
 
 ```text
 PhD Research
@@ -88,120 +164,13 @@ PhD Research
     └── Battery Publications & Future Work
 ```
 
-## Add or replace node images
+## GitHub Pages
 
-Put images in:
-
-```text
-assets/images/
-```
-
-Then update the matching node in `js/research-data.js`:
-
-```js
-{
-  id: "pp-carbon",
-  name: "PP / Carbon Fiber Interface",
-  category: "composites",
-  preview: "assets/images/my-ovito-interface.png",
-  images: [
-    {
-      src: "assets/images/my-ovito-interface.png",
-      caption: "LAMMPS / OVITO PP-carbon interface"
-    }
-  ],
-  models: ["PP molecular slab", "Graphitic carbon surface"],
-  papers: [],
-  next: ["Run separation simulations"]
-}
-```
-
-Use relative paths such as `assets/images/result.png`. Do not use local filesystem paths, `file://` URLs, or absolute website-root paths.
-
-## Edit research data
-
-Most content changes only require editing `js/research-data.js`.
-
-Main fields:
-
-- `name`: node label
-- `description`: description shown in the side panel
-- `preview`: small image shown near the node
-- `images`: image gallery shown after clicking the node
-- `models`: models / experiments associated with that node
-- `papers`: papers and DOI links
-- `next`: next research steps
-- `children`: sub-branches
-
-Keep each `id` unique. Add nested `children` when a node should expand into subtopics.
-
-## Run locally
-
-You can usually double-click:
+This repository is configured to publish from:
 
 ```text
-index.html
+Branch: main
+Folder: / (root)
 ```
 
-For the most reliable local test, run a local server:
-
-```bash
-cd phd-research-3d-map
-python -m http.server 8000
-```
-
-Then open:
-
-```text
-http://localhost:8000
-```
-
-The current interface does not require WebGL or a JavaScript CDN. It only needs the local static files in this repository.
-
-## Deploy to GitHub Pages
-
-1. Push the project files to the repository.
-2. Go to **Settings → Pages**.
-3. Under **Build and deployment**, choose **Deploy from a branch**.
-4. Select:
-   - Branch: `main`
-   - Folder: `/ (root)`
-5. Save.
-
-The published site is:
-
-```text
-https://wangluo021.github.io/phd-research-3d-map/
-```
-
-## Recommended real research images
-
-### Theme I — Composites
-
-- Abaqus temperature contour
-- degree-of-cure contour
-- 1D / 2D / 3D model comparison
-- Pareto optimization
-- industrial pultrusion setup
-- fiber architecture simulation
-- OVITO PU network
-- PP / carbon-fiber interface
-- PP / cellulose interface
-- DSC / rheology / DMA results
-- load-cell setup
-
-### Theme II — Batteries
-
-- raw SEM
-- segmented SEM / RVE
-- Abaqus porosity or stress contours
-- experimental compression curve
-- 3D roller-calendering model
-- dry catholyte / SSE layer photographs
-- electrostatic spray setup
-- deflector CAD / simulation
-- electric-field / particle-deposition results
-- EIS plots
-- Li6PS5Cl OVITO supercell
-
-Using actual SEM, Abaqus, OVITO, process photographs, and experimental plots will make the atlas work as a research portfolio rather than a generic mind map.
+Because the project is static and uses relative paths, no build step is required.
